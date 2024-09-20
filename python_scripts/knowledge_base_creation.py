@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import shutil
 from tqdm import tqdm
 import torch
+import uuid
 
 # Constants
 DATA_PATH = "../data/processed_data/text"
@@ -71,15 +72,24 @@ def save_to_chroma(chunks: list[Document], arctic_embedder):
         # Prepare metadata (e.g., sources) for each document
         metadatas = [chunk.metadata for chunk in batch]
 
+        # Generate unique IDs for each document chunk
+        ids = [str(uuid.uuid4()) for _ in range(len(batch))]
+
         # Create a new Chroma database or add to the existing one
         if db is None:
+            # Pass None as the embedding function since we are using precomputed embeddings
             db = Chroma(
                 persist_directory=CHROMA_PATH, 
-                embedding_function=None  # Pass None since embeddings are precomputed
+                embedding_function=None  # Explicitly set embedding_function to None
             )
         
-        # Add the precomputed embeddings and metadata to Chroma
-        db.add_embeddings(embeddings, documents, metadatas)
+        # Add precomputed embeddings along with texts, metadata, and unique IDs to Chroma
+        db._collection.upsert(
+            embeddings=embeddings, 
+            metadatas=metadatas, 
+            documents=documents,
+            ids=ids  # Pass the generated IDs
+        )
 
         # Persist the database after each batch
         db.persist()
