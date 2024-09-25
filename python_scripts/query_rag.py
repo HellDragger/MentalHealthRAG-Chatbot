@@ -105,8 +105,8 @@ def evaluate_rag_system(query_text, expected_keywords):
 
 def main():
     # Query text and expected keywords for evaluation
-    query_text = "What is depression?"
-    expected_keywords = ["depression"]  # Example of expected keywords
+    query_text = "What is OCD?"
+    expected_keywords = ["OCD"]  # Example of expected keywords
 
     # Call the evaluation function
     formatted_response, response_text = evaluate_rag_system(query_text, expected_keywords)
