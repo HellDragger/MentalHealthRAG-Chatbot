@@ -1,7 +1,7 @@
 import transformers
-from langchain.llms import HuggingFacePipeline
+from langchain_community.llms import HuggingFacePipeline
 from langchain.prompts import PromptTemplate
-from langchain.embeddings.huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.chains import LLMChain
 import chromadb
 import nest_asyncio
