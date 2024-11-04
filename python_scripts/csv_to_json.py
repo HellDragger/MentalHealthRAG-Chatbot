@@ -1,75 +1,46 @@
-import csv
+import pandas as pd
 import json
 import os
 
-def csv_to_json(csv_file_path, json_file_path):
-    data = []
-    
-    # Read the CSV file
-    with open(csv_file_path, mode='r', encoding='utf-8') as csv_file:
-        csv_reader = csv.DictReader(csv_file)
+# List of CSV files to process
+csv_files = [
+    '../data/processed_data/processed_csv/depression_dataset_reddit_cleaned_processed.csv',
+    '../data/processed_data/processed_csv/dreaddit_merged_processed.csv',
+    '../data/processed_data/processed_csv/Mental_Health_FAQ_processed.csv',
+    '../data/raw_data/CSV Files/context_response_train.csv'
+]
+
+# Directory to save JSON files
+output_json_dir = '../data/processed_data/processed_JSON/'
+
+# Create the output directory if it doesn't exist
+os.makedirs(output_json_dir, exist_ok=True)
+
+# Function to convert CSV to JSON format
+def csv_to_json_individual(csv_files, output_json_dir):
+    # Loop through the CSV files
+    for csv_file in csv_files:
+        # Read the CSV file
+        df = pd.read_csv(csv_file)
         
-        # Loop over each row and append it to the data list
-        for row in csv_reader:
-            data.append({
-                "context": row["Context"],
-                "response": row["Response"]
-            })
-    
-    # Write the data to a JSON file
-    with open(json_file_path, mode='w', encoding='utf-8') as json_file:
-        json.dump(data, json_file, ensure_ascii=False, indent=4)
-    
-    print(f"CSV data successfully converted and saved to {json_file_path}")
-
-# Example usage
-csv_file_path = "../data/raw_data/CSV Files/context_response_train.csv"  # Replace with your CSV file path
-json_file_path = "../data/processed_data/processed_json/context_response_train.json"  # Replace with your desired output JSON file path
-csv_to_json(csv_file_path, json_file_path)
-
-def csv_to_json2(csv_file_path, json_file_path, key_col, value_col):
-    data = []
-    
-    # Read the CSV file
-    with open(csv_file_path, mode='r', encoding='utf-8') as csv_file:
-        csv_reader = csv.DictReader(csv_file)
+        # Convert the DataFrame to a list of dictionaries (records)
+        data = df.to_dict(orient='records')
         
-        # Loop over each row and append key-value pairs to the data list
-        for row in csv_reader:
-            data.append({
-                row[key_col]: row[value_col]
-            })
-    
-    # Write the data to a JSON file
-    with open(json_file_path, mode='w', encoding='utf-8') as json_file:
-        json.dump(data, json_file, ensure_ascii=False, indent=4)
-    
-    print(f"CSV data from {csv_file_path} successfully converted and saved to {json_file_path}")
-
-def process_all_csv_files(csv_dir, json_dir):
-    # Create the output directory if it doesn't exist
-    if not os.path.exists(json_dir):
-        os.makedirs(json_dir)
-
-    # Loop through all files in the CSV directory
-    for csv_file_name in os.listdir(csv_dir):
-        csv_file_path = os.path.join(csv_dir, csv_file_name)
-        json_file_path = os.path.join(json_dir, csv_file_name.replace('.csv', '.json'))
+        # Remove square brackets from all string values in the records
+        for record in data:
+            for key, value in record.items():
+                if isinstance(value, str):
+                    record[key] = value.replace('[', '').replace(']', '')
         
-        # Check which file is being processed and set appropriate key-value mapping
-        if csv_file_name == 'depression_dataset_reddit_cleaned_processed.csv':
-            csv_to_json2(csv_file_path, json_file_path, key_col='is_depression', value_col='clean_text')
-        elif csv_file_name == 'dreaddit_merged_processed.csv':
-            csv_to_json2(csv_file_path, json_file_path, key_col='subreddit', value_col='text')
-        elif csv_file_name == 'Mental_Health_FAQ_processed.csv':
-            csv_to_json2(csv_file_path, json_file_path, key_col='Questions', value_col='Answers')
-        else:
-            print(f"Skipping file: {csv_file_name} - No key-value mapping specified.")
-    
-    print("All CSV files processed.")
+        # Generate a JSON file name based on the CSV file name
+        file_name = os.path.basename(csv_file).replace('.csv', '.json')
+        output_json_path = os.path.join(output_json_dir, file_name)
+        
+        # Save the data to a JSON file
+        with open(output_json_path, 'w', encoding='utf-8') as json_file:
+            json.dump(data, json_file, ensure_ascii=False, indent=4)
+        
+        print(f"CSV data successfully converted and saved to {output_json_path}")
 
-# Example usage
-csv_dir = "../data/processed_data/processed_csv"  # Directory containing CSV files
-json_dir = "../data/processed_data/processed_JSON"  # Directory to save JSON files
-
-process_all_csv_files(csv_dir, json_dir)
+# Call the function to process the CSV files
+csv_to_json_individual(csv_files, output_json_dir)
