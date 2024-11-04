@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mental Health Query Bot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeToggleButton = document.getElementById('theme-toggle');
+            const body = document.body;
+            const chatContainer = document.querySelector('.chat-container');
+
+            // Load theme from localStorage (if available)
+            const storedTheme = localStorage.getItem('theme');
+            if (storedTheme) {
+                body.classList.add(storedTheme);
+                if (storedTheme === 'dark-theme') {
+                    themeToggleButton.innerHTML = '🌞';  // Sun icon for light mode toggle
+                } else {
+                    themeToggleButton.innerHTML = '🌙';  // Moon icon for dark mode toggle
+                }
+            }
+
+            // Toggle dark/light theme
+            themeToggleButton.addEventListener('click', () => {
+                if (body.classList.contains('dark-theme')) {
+                    body.classList.remove('dark-theme');
+                    body.classList.add('light-theme');
+                    themeToggleButton.innerHTML = '🌙';  // Moon icon for dark mode toggle
+                    localStorage.setItem('theme', 'light-theme');
+                } else {
+                    body.classList.remove('light-theme');
+                    body.classList.add('dark-theme');
+                    themeToggleButton.innerHTML = '🌞';  // Sun icon for light mode toggle
+                    localStorage.setItem('theme', 'dark-theme');
+                }
+            });
+        });
+
+        async function sendMessage() {
+            const userInput = document.getElementById('userInput').value;
+            if (!userInput) return;
+
+            // Append user's message to chat window
+            appendMessage('user', userInput);
+
+            // Show loading animation
+            showLoadingIndicator();
+
+            // Send the question to the server
+            const response = await fetch('/api/query', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ question: userInput }),
+            });
+
+            // Get response data
+            const data = await response.json();
+
+            // Hide loading animation
+            hideLoadingIndicator();
+
+            if (data.response) {
+                // Append bot's response to chat window
+                appendMessage('bot', data.response);
+            } else {
+                appendMessage('bot', 'Sorry, something went wrong.');
+            }
+
+            // Clear input field
+            document.getElementById('userInput').value = '';
+        }
+
+        function appendMessage(sender, text) {
+            const chatWindow = document.getElementById('chatWindow');
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', sender);
+            messageElement.innerHTML = `${text} <span class="timestamp">${new Date().toLocaleTimeString()}</span>`;
+            chatWindow.appendChild(messageElement);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function showLoadingIndicator() {
+            const chatWindow = document.getElementById('chatWindow');
+            const loadingElement = document.createElement('div');
+            loadingElement.id = 'loading';
+            loadingElement.classList.add('loading');
+            loadingElement.innerHTML = '...';
+            chatWindow.appendChild(loadingElement);
+        }
+
+        function hideLoadingIndicator() {
+            const loadingElement = document.getElementById('loading');
+            if (loadingElement) {
+                loadingElement.remove();
+            }
+        }
+    </script>
+</head>
+<body class="light-theme">
+    <div class="top-bar">
+        <span>Mental Health Query Bot</span>
+        <button id="theme-toggle" class="theme-button">🌙</button> <!-- Moon icon to toggle dark mode -->
+    </div>
+    <div class="chat-container">
+        <div class="chat-window" id="chatWindow"></div>
+        <div class="input-container">
+            <input type="text" id="userInput" placeholder="Enter your question here...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+</body>
+</html>
