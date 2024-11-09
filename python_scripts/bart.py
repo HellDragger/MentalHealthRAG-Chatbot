@@ -5,7 +5,6 @@ from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from langchain.chains import LLMChain
 import chromadb
 import nest_asyncio
-import torch
 
 # Apply nested asyncio to avoid runtime issues
 nest_asyncio.apply()
@@ -14,37 +13,32 @@ nest_asyncio.apply()
 chroma_client = chromadb.Client()
 collection = chroma_client.get_or_create_collection(name="mental")
 
-# Check if CUDA (GPU) is available and set device accordingly
-device = 0 if torch.cuda.is_available() else -1  # -1 for CPU
+# Initialize the text generation pipeline using GPT-J-6B
+model = "EleutherAI/gpt-j-6B"  # Using GPT-J 6B as the model
 
-# Initialize the text generation pipeline using Mistral-7B-Instruct-v0.3
-model_name = "mistralai/Mistral-7B-Instruct-v0.3"  # Using Mistral-7B-Instruct as the model
-
+# Use the 'transformers.pipeline' for text generation
 text_generation_pipeline = transformers.pipeline(
-    model=model_name,
+    model=model,
     task="text-generation",
-    tokenizer=model_name,  # Ensure tokenizer is correctly set
-    temperature=0.2,  # Low temperature for more focused outputs
+    temperature=0.2,
     repetition_penalty=1.1,
+    return_full_text=False,  # Set to False to get just the response text
     max_new_tokens=500,
-    device=device,  # Use GPU if available
-    top_p=0.9,  # Sampling parameter for response diversity
+    device=-1  # Ensure this is set to 0 for GPU; omit or set to -1 for CPU
 )
 
-# Define the LLM with the HuggingFace pipeline
-mistral_llm = HuggingFacePipeline(pipeline=text_generation_pipeline)
-
-# Create an instruction-based prompt template
+# Create a prompt template
 prompt_template = """
-**Context:**
+**Prompt:**
 
 {context}
 
 **Question:**
 {question}
-
-**Answer:**
 """
+
+# Define the LLM with the HuggingFace pipeline
+gptj_llm = HuggingFacePipeline(pipeline=text_generation_pipeline)
 
 # Create prompt from the prompt template
 prompt = PromptTemplate(
@@ -53,7 +47,7 @@ prompt = PromptTemplate(
 )
 
 # Create LLM chain
-llm_chain = LLMChain(llm=mistral_llm, prompt=prompt)
+llm_chain = LLMChain(llm=gptj_llm, prompt=prompt)
 
 # Function to retrieve documents from ChromaDB based on query
 def get_relevant_documents(query):
@@ -89,13 +83,11 @@ def run_rag_chain(user_question):
     
     return response_text
 
-if __name__ == "__main__":
-    # Example: User inputs a question
-    user_question = input("Please enter your question: ")
-    
-    # Run RAG chain with the user's question
-    answer = run_rag_chain(user_question)
-    
-    # Output the result (just the response text)
-    print("\nAnswer:")
-    print(answer)
+# Example: User inputs a question
+user_question = input("Please enter your question: ")
+
+# Run RAG chain with the user's question
+answer = run_rag_chain(user_question)
+
+# Output the result (just the response text)
+print(answer)
