@@ -52,3 +52,11 @@ def test_every_chunk_has_citation_metadata(built_index):
         assert c.source_file and c.title and c.source_type
         assert c.section is not None
     assert any(c.url and c.url.startswith("https://www.mind.org.uk") for c in idx.chunks)
+
+
+def test_explicit_backend_change_triggers_rebuild(built_index):
+    settings, _, _ = built_index
+    _, _, built = build_index(settings, backend="hashing")
+    assert not built  # same backend as the fixture index
+    _, _, built = build_index(settings, backend="auto")
+    assert not built  # auto accepts whatever the index was built with

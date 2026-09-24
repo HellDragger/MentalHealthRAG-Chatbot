@@ -52,6 +52,8 @@ def build_index(
         and old.get("embedder", {}).get("model") == ecfg.model
         and old.get("embedder", {}).get("query_prefix") == ecfg.query_prefix
         and old.get("embedder", {}).get("passage_prefix") == ecfg.passage_prefix
+        # an explicitly requested backend (e.g. fastembed for the CPU Space) must match too; "auto" accepts any
+        and (backend == "auto" or old.get("embedder", {}).get("backend") == backend)
     ):
         log.info("Index %s is up to date (corpus hash %s); skipping.", out, chash)
         return out, old.get("stats", {}), False
