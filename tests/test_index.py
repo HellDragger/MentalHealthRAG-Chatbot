@@ -55,8 +55,11 @@ def test_every_chunk_has_citation_metadata(built_index):
 
 
 def test_explicit_backend_change_triggers_rebuild(built_index):
-    settings, _, _ = built_index
+    settings, path, _ = built_index
     _, _, built = build_index(settings, backend="hashing")
-    assert not built  # same backend as the fixture index
-    _, _, built = build_index(settings, backend="auto")
-    assert not built  # auto accepts whatever the index was built with
+    assert not built  # same backend as the existing index -> skipped
+    m = json.loads((path / "manifest.json").read_text())
+    m["embedder"]["backend"] = "fastembed"  # pretend the index came from another runtime
+    (path / "manifest.json").write_text(json.dumps(m))
+    _, _, built = build_index(settings, backend="hashing")
+    assert built  # explicit backend differs from the manifest -> rebuilt
