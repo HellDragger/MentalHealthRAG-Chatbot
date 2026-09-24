@@ -15,7 +15,7 @@ from mhrag.ingest.dedup import drop_near_duplicates, jaccard, shingles
 from mhrag.ingest.sources import RawData
 from mhrag.types import Chunk, Document
 
-PIPELINE_VERSION = "2.0.0"  # bump when ingestion logic changes -> forces index rebuilds
+PIPELINE_VERSION = "2.0.1"  # 2.0.1: mojibake repair in FAQ/intents  # bump when ingestion logic changes -> forces index rebuilds
 
 
 @dataclass

@@ -74,7 +74,8 @@ rerankers:
     fastembed_model: BAAI/bge-reranker-base
 
 llm:
-  model: qwen2.5-1.5b-gguf             # key in configs/models.yaml
+  model: qwen2.5-1.5b-gguf             # key in configs/models.yaml, or "auto" (first available below)
+  auto_preference: [llama-3.3-70b-groq, qwen2.5-1.5b-gguf, mock]
   served_models: [qwen2.5-1.5b-gguf, llama-3.3-70b-groq, llama-3.1-8b-groq, mock]
   max_new_tokens: 400
   temperature: 0.2
@@ -85,8 +86,8 @@ llm:
 safety:
   region: IN
   classifier: tfidf_lr                 # tfidf_lr | transformer | none
-  crisis_threshold: null               # null = use the tuned threshold stored with the classifier
-  elevated_threshold: 0.5
+  crisis_threshold: null               # null = classifier's high-precision threshold (val precision >= 0.95)
+  elevated_threshold: null             # null = classifier's recall threshold (val recall >= 0.95)
   output_checks: true
 
 server:

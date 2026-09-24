@@ -57,6 +57,31 @@ def normalize_unicode(text: str) -> str:
     return text
 
 
+_MOJIBAKE = re.compile("â€|Ã[\x80-\xbf]|Â[\xa0-\xbf]")
+
+
+def fix_mojibake(text: str) -> str:
+    """Repair UTF-8 text that was decoded as cp1252 somewhere upstream ("personâ€™s" -> "person’s").
+    Applied to the FAQ and intent files; the PDFs are not affected."""
+    if not _MOJIBAKE.search(text):
+        return text
+    try:
+        return text.encode("cp1252").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        # fix piecewise when the string mixes clean and broken spans
+        return _MOJIBAKE_SPAN.sub(lambda m: _try_fix(m.group(0)), text)
+
+
+_MOJIBAKE_SPAN = re.compile("(?:â€.|Ã.|Â.)+")
+
+
+def _try_fix(span: str) -> str:
+    try:
+        return span.encode("cp1252").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return span
+
+
 def is_boilerplate(line: str) -> bool:
     s = line.strip()
     if not s or _QUOTE_ONLY.match(s):

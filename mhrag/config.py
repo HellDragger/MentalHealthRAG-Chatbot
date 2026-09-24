@@ -70,7 +70,8 @@ class RerankerCfg(BaseModel):
 
 
 class LLMCfg(BaseModel):
-    model: str = "qwen2.5-1.5b-gguf"
+    model: str = "qwen2.5-1.5b-gguf"  # or "auto": first available model in auto_preference
+    auto_preference: list[str] = Field(default_factory=lambda: ["llama-3.3-70b-groq", "qwen2.5-1.5b-gguf", "mock"])
     served_models: list[str] = Field(default_factory=lambda: ["mock"])
     max_new_tokens: int = 400
     temperature: float = 0.2
@@ -83,7 +84,7 @@ class SafetyCfg(BaseModel):
     region: str = "IN"
     classifier: str = "tfidf_lr"
     crisis_threshold: float | None = None
-    elevated_threshold: float = 0.5
+    elevated_threshold: float | None = None
     output_checks: bool = True
 
 

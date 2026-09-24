@@ -58,3 +58,6 @@ Project Log/
 
 # Built indexes (rebuild with: python -m scripts.build_index)
 artifacts/index/
+
+# Local tool config
+.claude/

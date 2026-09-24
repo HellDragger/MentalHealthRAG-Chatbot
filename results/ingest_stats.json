@@ -14,7 +14,7 @@
       "pages": 1324,
       "cross_doc_boilerplate_lines_removed": 896,
       "sections": 2151,
-      "extract_seconds_pypdfium2": 1.66,
+      "extract_seconds_pypdfium2": 1.62,
       "web_articles": [
         "PDF_Files/5 Best Mental Health Apps - VIMS.pdf",
         "PDF_Files/Depression - Types, Causes, Symptoms, Diagnosis, Treatment.pdf",
@@ -51,27 +51,27 @@
       "faq": 98,
       "kb_fact": 30
     },
-    "load_seconds": 1.77
+    "load_seconds": 1.73
   },
   "chunking": {
     "chunk_tokens": 256,
     "overlap_ratio": 0.15,
-    "chunks_before_dedup": 2451,
-    "exact_duplicates_removed": 17,
-    "near_duplicates_removed": 13,
-    "chunks": 2421,
+    "chunks_before_dedup": 2450,
+    "exact_duplicates_removed": 19,
+    "near_duplicates_removed": 11,
+    "chunks": 2420,
     "chunks_by_source_type": {
       "web_article": 64,
       "mind_web": 757,
       "mind_booklet": 1386,
       "faq": 200,
-      "kb_fact": 14
+      "kb_fact": 13
     },
     "tokens_per_chunk": {
       "min": 20,
       "median": 212,
       "max": 240,
-      "mean": 191.9
+      "mean": 192.0
     },
     "near_duplicate_examples": [
       {
@@ -110,18 +110,11 @@
         "jaccard": 0.865
       },
       {
-        "dropped": "2cfcbe2f636cc196",
-        "dropped_source": "CSV Files/Mental_Health_FAQ.csv",
-        "kept": "825d82452720a325",
+        "dropped": "59a450768cd51fb2",
+        "dropped_source": "JSON Files/KB.json",
+        "kept": "404fbcdada6f0a0d",
         "kept_source": "CSV Files/Mental_Health_FAQ.csv",
         "jaccard": 1.0
-      },
-      {
-        "dropped": "ffd85c4bc24b60cc",
-        "dropped_source": "JSON Files/KB.json",
-        "kept": "825d82452720a325",
-        "kept_source": "CSV Files/Mental_Health_FAQ.csv",
-        "jaccard": 0.914
       },
       {
         "dropped": "c7a3aad0acbb483d",
@@ -147,7 +140,7 @@
       {
         "dropped": "abfb8446f13ee6bd",
         "dropped_source": "JSON Files/KB.json",
-        "kept": "e340f2bb8ba0991e",
+        "kept": "4fd998b92394b137",
         "kept_source": "CSV Files/Mental_Health_FAQ.csv",
         "jaccard": 0.94
       },
@@ -157,19 +150,12 @@
         "kept": "8c20f824c136841d",
         "kept_source": "CSV Files/Mental_Health_FAQ.csv",
         "jaccard": 0.931
-      },
-      {
-        "dropped": "b56115f3ee862f06",
-        "dropped_source": "JSON Files/KB.json",
-        "kept": "dbfaa89a0e7ed7aa",
-        "kept_source": "CSV Files/Mental_Health_FAQ.csv",
-        "jaccard": 1.0
       }
     ]
   },
   "timing_seconds": {
-    "load_and_chunk": 2.66,
-    "embed": 14.7
+    "load_and_chunk": 2.6,
+    "embed": 14.43
   },
   "tokenizer_exact": true
 }

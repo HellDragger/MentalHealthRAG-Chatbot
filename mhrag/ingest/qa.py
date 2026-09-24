@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from mhrag.ingest.clean import fix_mojibake
 from mhrag.ingest.sources import RawData
 from mhrag.types import Document, Section
 
@@ -34,14 +35,14 @@ def _slug(s: str) -> str:
 
 
 def _norm(s: str) -> str:
-    return re.sub(r"\s+", " ", str(s)).strip()
+    return re.sub(r"\s+", " ", fix_mojibake(str(s))).strip()
 
 
 def load_faq(rd: RawData) -> list[Document]:
     df = pd.read_csv(io.BytesIO(rd.read(FAQ_FILE)))
     docs = []
     for _, row in df.iterrows():
-        q, a = _norm(row["Questions"]), str(row["Answers"]).strip()
+        q, a = _norm(row["Questions"]), fix_mojibake(str(row["Answers"])).strip()
         docs.append(
             Document(
                 doc_id=f"faq:{row['Question_ID']}",
@@ -81,7 +82,7 @@ def _responses(intent: dict) -> list[str]:
             r = parsed if isinstance(parsed, list) else [r]
         except (ValueError, SyntaxError):
             r = [r]
-    return [str(x).strip() for x in r if str(x).strip()]
+    return [fix_mojibake(str(x)).strip() for x in r if str(x).strip()]
 
 
 @dataclass
@@ -99,7 +100,7 @@ def load_intents(rd: RawData, name: str) -> list[Intent]:
         Intent(
             source_file=name,
             tag=str(it.get("tag", "")),
-            patterns=[p.strip() for p in it.get("patterns", []) if p and p.strip()],
+            patterns=[fix_mojibake(p).strip() for p in it.get("patterns", []) if p and p.strip()],
             responses=_responses(it),
         )
         for it in items

@@ -102,3 +102,8 @@ def test_near_duplicates_detected_and_higher_priority_source_kept():
     mk = lambda i, t, st: Chunk(i, i, t, "T", "S", ["S"], "f", st, None, n_tokens=20)  # noqa: E731
     kept, log = drop_near_duplicates([mk("x", b, "web_article"), mk("y", a, "mind_web")], 0.8)
     assert [c.chunk_id for c in kept] == ["y"] and log
+
+
+def test_fix_mojibake():
+    assert clean.fix_mojibake("personâ€™s health") == "person’s health"
+    assert clean.fix_mojibake("already fine ’") == "already fine ’"
