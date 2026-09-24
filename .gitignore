@@ -1,10 +1,57 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# --- Environments / secrets ---
+.venv/
+venv/
+chatbotenv/
+.env
+.env.*
+!.env.example
+
+# --- Editors / OS ---
+.idea/
+.vscode/
+.DS_Store
+
+# --- Data ---
+# The raw archive data/raw_data.zip is tracked; extracted copies are not.
+data/raw_data/
+data/processed_data/
+data/chroma*/
+# Model weights downloaded at runtime
+models/
+*.gguf
+# Classifier checkpoints (large); the small TF-IDF model in artifacts/ is tracked
+artifacts/risk_classifier/transformer/
+# Local scratch
+scratch/
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.bbl
+paper/*.blg
+paper/*.spl
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.synctex.gz
+
+# --- Personal files from v1 (kept out of the repo) ---
 Literature Review
-chatbotenv
 data_preprocessing.py
 document_creation.py
-data
 Monthly_Project_Report.pdf.pdf
 mental_health_chatbot_rag_uml.png
 New Text Document.txt
-.env
-Project Log/Log File.xlsx
+Project Log/
