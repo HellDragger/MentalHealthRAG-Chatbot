@@ -55,3 +55,6 @@ Monthly_Project_Report.pdf.pdf
 mental_health_chatbot_rag_uml.png
 New Text Document.txt
 Project Log/
+
+# Built indexes (rebuild with: python -m scripts.build_index)
+artifacts/index/
