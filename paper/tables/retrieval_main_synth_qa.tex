@@ -1,0 +1,34 @@
+% Auto-generated from results/retrieval_main.json -- do not edit by hand.
+\begin{table}[t]
+\centering
+\small
+\caption{Retrieval on SynthQA (n=189, 256-token chunks). R@k = at least one relevant chunk in the top $k$. 95\% bootstrap CIs in brackets. $^{\dagger}$ baseline (v1 embedder, dense); $^{*}$ significantly different from the baseline on nDCG@10 (paired bootstrap, Holm-corrected $p<0.05$). ms = median retrieval latency.}
+\label{tab:retrieval-main-synth-qa}
+\begin{tabular}{llrrrrrr}
+\toprule
+System & Embedder & R@1 & R@5 & R@10 & MRR@10 & nDCG@10 & ms \\
+\midrule
+Dense & MiniLM-L6 & 0.450 & 0.778 & 0.868 & 0.587 {\scriptsize [0.534, 0.646]} & 0.637 {\scriptsize [0.586, 0.689]}$^{\dagger}$ & 5 \\
+Hybrid (RRF) & MiniLM-L6 & 0.593 & 0.873 & 0.952 & 0.713 {\scriptsize [0.660, 0.764]} & 0.745 {\scriptsize [0.702, 0.789]}$^{*}$ & 5 \\
+Hybrid + MiniLM-CE & MiniLM-L6 & 0.630 & 0.878 & 0.963 & 0.735 {\scriptsize [0.683, 0.785]} & 0.761 {\scriptsize [0.720, 0.802]}$^{*}$ & 121 \\
+Hybrid + BGE-reranker & MiniLM-L6 & 0.656 & 0.942 & 0.984 & 0.775 {\scriptsize [0.730, 0.819]} & 0.801 {\scriptsize [0.765, 0.838]}$^{*}$ & 696 \\
+BM25 & -- & 0.577 & 0.847 & 0.921 & 0.696 {\scriptsize [0.639, 0.748]} & 0.746 {\scriptsize [0.700, 0.792]}$^{*}$ & 0 \\
+Dense & BGE-small & 0.587 & 0.862 & 0.915 & 0.698 {\scriptsize [0.639, 0.753]} & 0.747 {\scriptsize [0.695, 0.796]}$^{*}$ & 7 \\
+Hybrid (RRF) & BGE-small & 0.603 & 0.915 & 1.000 & 0.741 {\scriptsize [0.696, 0.786]} & 0.799 {\scriptsize [0.764, 0.834]}$^{*}$ & 7 \\
+Hybrid + MiniLM-CE & BGE-small & 0.614 & 0.921 & 0.984 & 0.737 {\scriptsize [0.690, 0.785]} & 0.792 {\scriptsize [0.755, 0.831]}$^{*}$ & 121 \\
+Hybrid + BGE-reranker & BGE-small & 0.661 & 0.947 & 0.984 & 0.780 {\scriptsize [0.737, 0.825]} & 0.828 {\scriptsize [0.791, 0.864]}$^{*}$ & 736 \\
+Dense & BGE-base & 0.587 & 0.852 & 0.926 & 0.692 {\scriptsize [0.644, 0.744]} & 0.744 {\scriptsize [0.702, 0.790]}$^{*}$ & 12 \\
+Hybrid (RRF) & BGE-base & 0.593 & 0.915 & 0.995 & 0.740 {\scriptsize [0.695, 0.787]} & 0.798 {\scriptsize [0.763, 0.835]}$^{*}$ & 11 \\
+Hybrid + MiniLM-CE & BGE-base & 0.614 & 0.926 & 0.979 & 0.737 {\scriptsize [0.691, 0.786]} & 0.791 {\scriptsize [0.752, 0.830]}$^{*}$ & 125 \\
+Hybrid + BGE-reranker & BGE-base & 0.661 & 0.947 & 0.979 & 0.780 {\scriptsize [0.737, 0.825]} & 0.827 {\scriptsize [0.789, 0.864]}$^{*}$ & 778 \\
+Dense & E5-base & 0.508 & 0.831 & 0.910 & 0.645 {\scriptsize [0.591, 0.702]} & 0.705 {\scriptsize [0.658, 0.753]}$^{*}$ & 11 \\
+Hybrid (RRF) & E5-base & 0.608 & 0.915 & 0.968 & 0.743 {\scriptsize [0.699, 0.790]} & 0.795 {\scriptsize [0.758, 0.832]}$^{*}$ & 11 \\
+Hybrid + MiniLM-CE & E5-base & 0.614 & 0.931 & 0.979 & 0.738 {\scriptsize [0.693, 0.786]} & 0.793 {\scriptsize [0.755, 0.832]}$^{*}$ & 124 \\
+Hybrid + BGE-reranker & E5-base & 0.661 & 0.947 & 0.989 & 0.781 {\scriptsize [0.738, 0.826]} & \textbf{0.830} {\scriptsize [0.795, 0.866]}$^{*}$ & 773 \\
+Dense & GTE-base & 0.582 & 0.884 & 0.942 & 0.705 {\scriptsize [0.656, 0.760]} & 0.759 {\scriptsize [0.719, 0.803]}$^{*}$ & 10 \\
+Hybrid (RRF) & GTE-base & 0.614 & 0.921 & 0.979 & 0.751 {\scriptsize [0.708, 0.799]} & 0.804 {\scriptsize [0.770, 0.843]}$^{*}$ & 10 \\
+Hybrid + MiniLM-CE & GTE-base & 0.614 & 0.921 & 0.974 & 0.736 {\scriptsize [0.689, 0.784]} & 0.789 {\scriptsize [0.750, 0.829]}$^{*}$ & 123 \\
+Hybrid + BGE-reranker & GTE-base & 0.661 & 0.942 & 0.984 & 0.781 {\scriptsize [0.738, 0.825]} & 0.828 {\scriptsize [0.791, 0.864]}$^{*}$ & 834 \\
+\bottomrule
+\end{tabular}
+\end{table}
