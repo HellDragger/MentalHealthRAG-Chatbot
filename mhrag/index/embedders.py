@@ -61,7 +61,8 @@ class SentenceTransformerEmbedder(Embedder):
 
         self.model = SentenceTransformer(cfg.model, device=device)
         self.model.max_seq_length = min(self.model.max_seq_length or cfg.max_tokens, cfg.max_tokens)
-        self.dim = int(self.model.get_sentence_embedding_dimension())
+        get_dim = getattr(self.model, "get_embedding_dimension", None) or self.model.get_sentence_embedding_dimension
+        self.dim = int(get_dim())
 
     def _encode(self, texts, batch_size):
         return self.model.encode(texts, batch_size=batch_size, show_progress_bar=False, convert_to_numpy=True)
