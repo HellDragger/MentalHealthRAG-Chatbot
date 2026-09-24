@@ -137,6 +137,10 @@ class RAGPipeline:
         prefix = ELEVATED_PREFIX if gate is not None and gate.label == "elevated" else ""
         if prefix:
             yield Event("token", {"text": prefix})
+        if not self.models.is_loaded(model):
+            key = model or self.models.default
+            yield Event("status", {"text": f"Loading {self.models.catalog[key].label}… the first use can take a "
+                                           "while (the model may need to download)."})
         backend = self.models.get(model)
         tgen = time.perf_counter()
         ttft = None

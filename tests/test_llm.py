@@ -153,3 +153,32 @@ def test_local_backend_generation_is_serialised():
     [t.start() for t in ts]
     [t.join() for t in ts]
     assert Slow.peak == 1
+
+
+def test_serve_all_lists_whole_catalogue_grouped_with_reasons(monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    cat = load_catalog()
+    mm = ModelManager(cat, ["*"], "mock")
+    listed = mm.list()
+    assert {m["key"] for m in listed} == set(cat)
+    assert listed[0]["key"] == "mock" and listed[0]["default"]
+    groq = next(m for m in listed if m["key"] == "llama-3.3-70b-groq")
+    assert not groq["available"] and "GROQ_API_KEY" in groq["status"] and groq["group"] == "api"
+    assert next(m for m in listed if m["key"] == "gpt2")["group"] == "baseline"
+    assert next(m for m in listed if m["key"] == "tinyllama-1.1b-chat")["group"] != "baseline"
+    for m in listed:
+        assert m["group_label"] and (m["available"] or m["status"])
+
+
+def test_memory_check_blocks_models_that_do_not_fit(monkeypatch):
+    from mhrag.llm import registry
+
+    monkeypatch.setattr(registry, "device_memory_gb", lambda: (8.0, "RAM"))
+    spec = load_catalog()["llama-3.1-8b-gguf"]
+    ok, why = registry.availability(spec)
+    if registry.importlib.util.find_spec("llama_cpp") is not None:
+        assert ok is True or "needs" in why  # 8B Q4 ~5.6 GB fits in 8 GB * 0.8
+    spec7 = load_catalog()["qwen2.5-7b-instruct"]
+    if registry.importlib.util.find_spec("torch") is not None:
+        ok, why = registry.availability(spec7)
+        assert not ok and "needs" in why

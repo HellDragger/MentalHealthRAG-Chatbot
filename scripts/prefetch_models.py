@@ -23,7 +23,8 @@ def main():
     from huggingface_hub import hf_hub_download
 
     cat = load_catalog()
-    for key in s.llm.auto_preference + s.llm.served_models:
+    # only the automatic fallback model is baked into the image; other GGUF models download on first use
+    for key in s.llm.auto_preference:
         spec = cat.get(key)
         if spec and spec.backend == "llamacpp":
             path = hf_hub_download(spec.raw["gguf_repo"], spec.raw["gguf_file"])

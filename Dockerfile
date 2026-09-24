@@ -34,7 +34,7 @@ ENV MHRAG_EMBEDDER_BACKEND=fastembed \
     MHRAG_LLAMACPP_GPU_LAYERS=0 \
     MHRAG_LLAMACPP_CTX=4096 \
     MHRAG_LLM__MODEL=auto \
-    MHRAG_LLM__SERVED_MODELS='["llama-3.3-70b-groq","gpt-oss-120b-groq","llama-3.1-8b-groq","qwen2.5-1.5b-gguf"]' \
+    MHRAG_LLM__SERVED_MODELS='["llama-3.3-70b-groq","gpt-oss-120b-groq","gpt-oss-20b-groq","llama-3.1-8b-groq","qwen2.5-1.5b-gguf","llama-3.2-1b-gguf","llama-3.2-3b-gguf","gemma-2-2b-gguf","phi-3.5-mini-gguf","qwen3-4b-gguf"]' \
     MHRAG_SERVER__MAX_CONCURRENT_GENERATIONS=1 \
     MHRAG_SERVER__PORT=7860
 

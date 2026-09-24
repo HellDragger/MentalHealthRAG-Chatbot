@@ -58,7 +58,9 @@ h1 { font-size: 1.05rem; margin: 0; }
 select, textarea {
   font: inherit; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
 }
-select { padding: 6px 8px; max-width: 240px; font-size: .88rem; }
+select { padding: 6px 8px; max-width: 320px; font-size: .88rem; }
+optgroup { font-style: normal; font-weight: 700; }
+option:disabled { color: var(--muted); }
 
 .btn { font: inherit; border-radius: 10px; border: 1px solid var(--border); padding: 8px 14px; cursor: pointer; background: var(--surface); color: var(--text); }
 .btn.primary { background: var(--accent); color: var(--accent-contrast); border-color: var(--accent); font-weight: 600; }

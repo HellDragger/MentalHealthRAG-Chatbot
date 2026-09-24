@@ -227,7 +227,8 @@
         throw new Error(msg);
       }
       for await (const { event, data } of sse(resp)) {
-        if (event === "gate" && data.label && data.label !== "none") showCrisis(data.label, data.helplines);
+        if (event === "status") { if (!answer) view.body.textContent = data.text; }
+        else if (event === "gate" && data.label && data.label !== "none") showCrisis(data.label, data.helplines);
         else if (event === "sources") sources = data.sources || [];
         else if (event === "token") { answer += data.text; rendered = true; schedule(); }
         else if (event === "replace") { answer = data.text; schedule(); }
@@ -312,11 +313,25 @@
     applyTheme(prefs.theme);
     try {
       const [models, hl] = await Promise.all([fetch("/api/models").then((r) => r.json()), fetch("/api/helplines").then((r) => r.json())]);
+      // One <optgroup> per model family; models that cannot run here stay visible but disabled, with the reason.
+      const groups = new Map();
       models.models.forEach((m) => {
+        if (!groups.has(m.group_label)) {
+          const g = document.createElement("optgroup"); g.label = m.group_label || "Models";
+          groups.set(m.group_label, g); modelSel.appendChild(g);
+        }
         const o = document.createElement("option"); o.value = m.key;
-        o.textContent = m.available ? m.label : `${m.label} (unavailable: ${m.status})`;
-        o.disabled = !m.available; modelSel.appendChild(o);
+        const size = m.params_b ? ` · ${m.params_b < 1 ? Math.round(m.params_b * 1000) + "M" : Math.round(m.params_b * 10) / 10 + "B"}` : "";
+        let text = m.label + size;
+        if (!m.available) text += ` (unavailable: ${m.status})`;
+        else if (m.status && m.status !== "ok") text += ` (${m.status})`;
+        o.textContent = text;
+        o.title = [m.label, m.license ? `licence: ${m.license}` : "", m.available ? m.status : `unavailable: ${m.status}`].filter(Boolean).join("\n");
+        o.disabled = !m.available;
+        groups.get(m.group_label).appendChild(o);
       });
+      const nAvail = models.models.filter((m) => m.available).length;
+      modelSel.setAttribute("aria-description", `${nAvail} of ${models.models.length} models available on this server`);
       const want = prefs.model && models.models.some((m) => m.key === prefs.model && m.available) ? prefs.model : models.default;
       modelSel.value = want;
       hl.regions.forEach((r) => { const o = document.createElement("option"); o.value = r.code; o.textContent = r.name; regionSel.appendChild(o); });
