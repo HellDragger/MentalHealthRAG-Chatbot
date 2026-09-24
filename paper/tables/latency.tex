@@ -1,0 +1,20 @@
+% Auto-generated from results/latency.json -- do not edit by hand.
+\begin{table}[t]
+\centering
+\small
+\caption{End-to-end latency for 12 fixed questions (v1: 5). TTFT = time to first streamed token (v1 does not stream, so TTFT equals end-to-end time). v2 rows include the safety gate, hybrid retrieval and reranking. Peak RSS excludes GPU/unified memory held by Metal.}
+\label{tab:latency}
+\begin{tabular}{llrrrrr}
+\toprule
+Configuration & Model & TTFT p50 (s) & E2E p50 (s) & E2E p95 (s) & tok/s & Peak RSS (GB) \\
+\midrule
+v1 settings (fp32, CPU, no streaming) & qwen2.5-1.5b-instruct & 79.35 & 79.4 & 315.0 & 3.4 & 6.0 \\
+v2 llama.cpp Q4\_K\_M, CPU & qwen2.5-1.5b-gguf & 5.65 & 11.6 & 15.1 & 24.6 & 2.8 \\
+v2 llama.cpp Q4\_K\_M, Metal & qwen2.5-1.5b-gguf & 1.42 & 7.5 & 9.1 & 43.8 & 1.9 \\
+v2 transformers fp16, MPS & qwen2.5-1.5b-instruct & 1.51 & 15.8 & 22.6 & 17.5 & 3.7 \\
+v2 transformers bf16, CUDA & -- & \multicolumn{5}{l}{\todorun{python -m scripts.bench\_latency --config v2\_hf\_cuda}} \\
+v2 transformers NF4, CUDA & -- & \multicolumn{5}{l}{\todorun{python -m scripts.bench\_latency --config v2\_hf\_cuda\_4bit}} \\
+v2 Groq API (Llama-3.3-70B) & -- & \multicolumn{5}{l}{\todorun{python -m scripts.bench\_latency --config v2\_api}} \\
+\bottomrule
+\end{tabular}
+\end{table}

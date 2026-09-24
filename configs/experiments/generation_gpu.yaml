@@ -1,0 +1,37 @@
+# Full multi-LLM benchmark. Run on a free Colab/Kaggle T4 (16 GB) with 4-bit for 7-12B models:
+#   MHRAG_LOAD_IN_4BIT=1 python -m scripts.run_eval --config configs/experiments/generation_gpu.yaml
+# Answers are checkpointed per (model, profile, dataset) and the run resumes where it stopped.
+# Gated models (Llama, Gemma) need HF_TOKEN and an accepted licence; unavailable models are recorded as TODO(run).
+kind: generation
+name: gpu
+models:
+  - mistral-7b-instruct-v0.3     # v1 baseline model
+  - ministral-8b-instruct-2410   # v1 query_mistral.py model
+  - llama-3.1-8b-instruct
+  - llama-3.2-3b-instruct
+  - qwen2.5-7b-instruct
+  - qwen2.5-1.5b-instruct
+  - qwen3-4b
+  - qwen3-8b
+  - gemma-2-2b-it
+  - gemma-3-4b-it
+  - gemma-3-12b-it
+  - phi-3.5-mini-instruct
+  - phi-4-mini-instruct
+  - mentallama-chat-7b           # mental-health domain baseline
+  - smollm2-1.7b-instruct
+  - flan-t5-large
+  - gpt2                         # v1 baselines
+  - gpt-j-6b
+  - bart-large-cnn
+  - llama-3.3-70b-groq           # API upper reference (GROQ_API_KEY)
+  - gpt-oss-120b-groq
+profiles: [no_rag, naive, full]
+datasets: [faq_gen, oos_questions, counsel_gen]
+limits: {counsel_gen: 100}
+naive: {embedder: minilm, chunk_tokens: 48}
+temperature: 0.0
+judge_model: llama-3.3-70b-groq
+nli_model: cross-encoder/nli-deberta-v3-base
+bertscore_model: roberta-large
+timeout_s: 600

@@ -1,0 +1,34 @@
+% Auto-generated from results/retrieval_main.json -- do not edit by hand.
+\begin{table}[t]
+\centering
+\small
+\caption{Retrieval on ParaphraseQA (n=58, 256-token chunks). R@k = at least one relevant chunk in the top $k$. 95\% bootstrap CIs in brackets. $^{\dagger}$ baseline (v1 embedder, dense); $^{*}$ significantly different from the baseline on nDCG@10 (paired bootstrap, Holm-corrected $p<0.05$). ms = median retrieval latency.}
+\label{tab:retrieval-main-paraphrase-qa}
+\begin{tabular}{llrrrrrr}
+\toprule
+System & Embedder & R@1 & R@5 & R@10 & MRR@10 & nDCG@10 & ms \\
+\midrule
+Dense & MiniLM-L6 & 0.603 & 0.759 & 0.810 & 0.672 {\scriptsize [0.565, 0.781]} & 0.675 {\scriptsize [0.572, 0.775]}$^{\dagger}$ & 5 \\
+Hybrid (RRF) & MiniLM-L6 & 0.603 & 0.776 & 0.845 & 0.680 {\scriptsize [0.574, 0.788]} & 0.690 {\scriptsize [0.592, 0.788]} & 5 \\
+Hybrid + MiniLM-CE & MiniLM-L6 & 0.828 & 0.879 & 0.897 & 0.850 {\scriptsize [0.760, 0.933]} & 0.824 {\scriptsize [0.732, 0.905]}$^{*}$ & 115 \\
+Hybrid + BGE-reranker & MiniLM-L6 & 0.741 & 0.862 & 0.879 & 0.801 {\scriptsize [0.709, 0.885]} & 0.796 {\scriptsize [0.708, 0.875]}$^{*}$ & 673 \\
+BM25 & -- & 0.586 & 0.672 & 0.741 & 0.625 {\scriptsize [0.507, 0.742]} & 0.631 {\scriptsize [0.517, 0.745]} & 0 \\
+Dense & BGE-small & 0.707 & 0.828 & 0.879 & 0.771 {\scriptsize [0.680, 0.869]} & 0.771 {\scriptsize [0.681, 0.871]}$^{*}$ & 7 \\
+Hybrid (RRF) & BGE-small & 0.672 & 0.793 & 0.810 & 0.720 {\scriptsize [0.613, 0.827]} & 0.716 {\scriptsize [0.612, 0.817]} & 7 \\
+Hybrid + MiniLM-CE & BGE-small & 0.845 & 0.897 & 0.914 & 0.868 {\scriptsize [0.785, 0.942]} & 0.841 {\scriptsize [0.757, 0.915]}$^{*}$ & 117 \\
+Hybrid + BGE-reranker & BGE-small & 0.741 & 0.879 & 0.897 & 0.810 {\scriptsize [0.721, 0.891]} & 0.804 {\scriptsize [0.716, 0.882]}$^{*}$ & 723 \\
+Dense & BGE-base & 0.759 & 0.862 & 0.897 & 0.815 {\scriptsize [0.729, 0.905]} & 0.812 {\scriptsize [0.728, 0.900]}$^{*}$ & 11 \\
+Hybrid (RRF) & BGE-base & 0.638 & 0.810 & 0.845 & 0.701 {\scriptsize [0.593, 0.808]} & 0.717 {\scriptsize [0.618, 0.816]} & 11 \\
+Hybrid + MiniLM-CE & BGE-base & 0.862 & 0.897 & 0.897 & 0.879 {\scriptsize [0.802, 0.948]} & 0.851 {\scriptsize [0.769, 0.927]}$^{*}$ & 121 \\
+Hybrid + BGE-reranker & BGE-base & 0.741 & 0.897 & 0.897 & 0.813 {\scriptsize [0.727, 0.897]} & 0.809 {\scriptsize [0.725, 0.888]}$^{*}$ & 760 \\
+Dense & E5-base & 0.741 & 0.828 & 0.897 & 0.785 {\scriptsize [0.691, 0.884]} & 0.795 {\scriptsize [0.708, 0.886]}$^{*}$ & 12 \\
+Hybrid (RRF) & E5-base & 0.638 & 0.776 & 0.862 & 0.699 {\scriptsize [0.592, 0.807]} & 0.719 {\scriptsize [0.619, 0.816]} & 11 \\
+Hybrid + MiniLM-CE & E5-base & 0.862 & 0.914 & 0.931 & 0.885 {\scriptsize [0.807, 0.950]} & \textbf{0.858} {\scriptsize [0.777, 0.929]}$^{*}$ & 121 \\
+Hybrid + BGE-reranker & E5-base & 0.741 & 0.897 & 0.914 & 0.818 {\scriptsize [0.735, 0.897]} & 0.818 {\scriptsize [0.734, 0.892]}$^{*}$ & 762 \\
+Dense & GTE-base & 0.724 & 0.862 & 0.879 & 0.792 {\scriptsize [0.698, 0.885]} & 0.798 {\scriptsize [0.705, 0.887]}$^{*}$ & 9 \\
+Hybrid (RRF) & GTE-base & 0.621 & 0.793 & 0.845 & 0.701 {\scriptsize [0.596, 0.804]} & 0.723 {\scriptsize [0.626, 0.821]} & 8 \\
+Hybrid + MiniLM-CE & GTE-base & 0.845 & 0.879 & 0.879 & 0.862 {\scriptsize [0.776, 0.940]} & 0.834 {\scriptsize [0.749, 0.912]}$^{*}$ & 118 \\
+Hybrid + BGE-reranker & GTE-base & 0.741 & 0.879 & 0.879 & 0.807 {\scriptsize [0.718, 0.891]} & 0.801 {\scriptsize [0.713, 0.881]}$^{*}$ & 808 \\
+\bottomrule
+\end{tabular}
+\end{table}

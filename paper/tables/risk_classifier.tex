@@ -1,0 +1,15 @@
+% Auto-generated from results/risk_classifier.json -- do not edit by hand.
+\begin{table}[t]
+\centering
+\small
+\caption{Risk classifier on the held-out test split of \texttt{mental\_health.csv} (n=2797, 1383 positive). $\tau$ is the largest threshold with validation recall $\geq 0.95$. 95\% bootstrap CIs in brackets.}
+\label{tab:risk-classifier}
+\begin{tabular}{lrrrrrr}
+\toprule
+Model & $\tau$ & Precision & Recall & F1 & AUROC & AUPRC \\
+\midrule
+TF-IDF + LR & 0.387 & 0.910 {\scriptsize [0.896, 0.925]} & 0.937 {\scriptsize [0.923, 0.949]} & 0.923 {\scriptsize [0.913, 0.934]} & 0.978 {\scriptsize [0.974, 0.983]} & 0.977 \\
+DistilRoBERTa (fine-tuned) & 0.579 & 0.969 {\scriptsize [0.960, 0.978]} & 0.955 {\scriptsize [0.944, 0.966]} & 0.962 {\scriptsize [0.955, 0.969]} & 0.992 {\scriptsize [0.990, 0.995]} & 0.992 \\
+\bottomrule
+\end{tabular}
+\end{table}

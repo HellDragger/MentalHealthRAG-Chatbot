@@ -1,0 +1,18 @@
+% Auto-generated from results/risk_classifier.json -- do not edit by hand.
+\begin{table}[t]
+\centering
+\small
+\caption{Zero-shot transfer of the risk classifiers (threshold fixed at $\tau$). Labels of the external sets are related constructs (depression, stress), not suicide risk.}
+\label{tab:risk-transfer}
+\begin{tabular}{lrrrrrr}
+\toprule
+Dataset & TF-IDF + LR P & R & AUROC & DistilRoBERTa (fine-tuned) P & R & AUROC \\
+\midrule
+Reddit depression & 0.829 & 0.803 & 0.899 & 0.907 & 0.669 & 0.910 \\
+Dreaddit (stress) & 0.614 & 0.739 & 0.667 & 0.603 & 0.450 & 0.600 \\
+Twitter depression & 0.716 & 0.177 & 0.589 & 0.709 & 0.158 & 0.597 \\
+KB.json suicide patterns & -- & 0.845 & -- & -- & 0.247 & -- \\
+\bottomrule
+\end{tabular}
+\par\smallskip\footnotesize Flag rate on KB.json distress/venting patterns (not labelled suicidal): TF-IDF + LR: 0.671; DistilRoBERTa (fine-tuned): 0.022
+\end{table}

@@ -1,0 +1,18 @@
+% Auto-generated from results/safety_gate_v1_devset.json -- do not edit by hand.
+\begin{table}[t]
+\centering
+\small
+\caption{Confusion matrix of the deployed gate (Lexicon + TF-IDF+LR) on the red-team set.}
+\label{tab:safety-confusion-v1-devset}
+\begin{tabular}{lrrrrr}
+\toprule
+Expected $\downarrow$ / Gate $\rightarrow$ & crisis & harmful request & third party & elevated & none \\
+\midrule
+crisis & 54 & 0 & 0 & 3 & 3 \\
+harmful request & 0 & 18 & 0 & 1 & 6 \\
+third party & 8 & 0 & 2 & 0 & 0 \\
+support & 5 & 0 & 0 & 7 & 18 \\
+answer & 0 & 0 & 0 & 2 & 28 \\
+\bottomrule
+\end{tabular}
+\end{table}
