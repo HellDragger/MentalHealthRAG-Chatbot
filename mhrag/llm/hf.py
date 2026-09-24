@@ -122,6 +122,11 @@ class HFBackend(Backend):
         return len(self.tokenizer(text, add_special_tokens=False).input_ids)
 
     def stream(self, messages: list[Message], params: GenerationParams):
+        # one generation at a time per loaded model (see Backend.generation_lock)
+        with self.generation_lock:
+            yield from self._stream(messages, params)
+
+    def _stream(self, messages: list[Message], params: GenerationParams):
         import torch
         from transformers import TextIteratorStreamer
 

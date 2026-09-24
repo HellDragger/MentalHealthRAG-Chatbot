@@ -125,3 +125,31 @@ def test_model_manager_serves_only_configured_models():
     with pytest.raises(BackendError):
         mm.get("qwen3-8b")
     assert mm.list()[0]["key"] == "mock"
+
+
+def test_local_backend_generation_is_serialised():
+    import threading
+    import time
+
+    from mhrag.llm.base import Backend
+
+    class Slow(Backend):
+        active = 0
+        peak = 0
+
+        def _stream(self, messages, params):
+            Slow.active += 1
+            Slow.peak = max(Slow.peak, Slow.active)
+            time.sleep(0.05)
+            Slow.active -= 1
+            yield "x"
+
+        def stream(self, messages, params):
+            with self.generation_lock:
+                yield from self._stream(messages, params)
+
+    b = Slow(ModelSpec("slow", "hf"))
+    ts = [threading.Thread(target=lambda: b.generate(MSGS, GenerationParams())) for _ in range(4)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    assert Slow.peak == 1

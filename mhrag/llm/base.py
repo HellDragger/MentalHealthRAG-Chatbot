@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
@@ -44,6 +45,9 @@ class Backend:
         self.spec = spec
         self.last_usage: dict = {}
         self.last_finish_reason: str | None = None  # "stop" | "length" (hit max_new_tokens) | None (unknown)
+        # Local models (llama.cpp, transformers) are not safe to run concurrently on one instance; their stream()
+        # holds this lock for the whole generation. HTTP backends do not need it.
+        self.generation_lock = threading.Lock()
 
     def stream(self, messages: list[Message], params: GenerationParams) -> Iterator[str]:  # pragma: no cover
         raise NotImplementedError

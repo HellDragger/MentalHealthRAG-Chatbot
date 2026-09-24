@@ -46,9 +46,9 @@ settings = get_settings()
 
 
 def _client_ip(request: Request) -> str:
-    # Behind the HF Spaces / Render proxy the client address is in X-Forwarded-For.
-    fwd = request.headers.get("x-forwarded-for")
-    return fwd.split(",")[0].strip() if fwd else get_remote_address(request)
+    # Behind a proxy (HF Spaces, Render) run uvicorn with --proxy-headers so request.client is the real client.
+    # X-Forwarded-For is not parsed here: its left-most entry is client-controlled and would allow evading the limit.
+    return get_remote_address(request)
 
 
 limiter = Limiter(key_func=_client_ip)

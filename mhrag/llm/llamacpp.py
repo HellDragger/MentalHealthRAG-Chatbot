@@ -39,6 +39,11 @@ class LlamaCppBackend(Backend):
         return len(self.llm.tokenize(text.encode("utf-8"), add_bos=False))
 
     def stream(self, messages: list[Message], params: GenerationParams):
+        # one generation at a time per loaded model (see Backend.generation_lock)
+        with self.generation_lock:
+            yield from self._stream(messages, params)
+
+    def _stream(self, messages: list[Message], params: GenerationParams):
         msgs = prepare_messages(messages, self.spec.family)
         if self.spec.family == "qwen3":
             msgs = qwen3_no_think(msgs)
