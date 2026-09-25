@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import os
 import time
 from pathlib import Path
 
@@ -55,6 +57,13 @@ def generate(cfg: dict, settings: Settings, out_dir: Path, limit: int | None) ->
         if cfg.get("run_models") and model not in cfg["run_models"]:
             records += _load_checkpoint(cfg, model, out_dir)  # reuse answers generated in earlier sessions
             continue
+        status_path = out_dir / f"{model}__status.json"
+        if _complete(cfg, model, out_dir, limit):  # finished in an earlier session: no need to load the model
+            log.info("%s: all answers already in the checkpoint; skipping", model)
+            records += _load_checkpoint(cfg, model, out_dir)
+            records.append(json.loads(status_path.read_text()) if status_path.exists()
+                           else {"model": model, "status": "ok"})
+            continue
         ok, why = availability(catalog[model])
         if not ok:
             log.warning("skip %s: %s", model, why)
@@ -62,20 +71,22 @@ def generate(cfg: dict, settings: Settings, out_dir: Path, limit: int | None) ->
             continue
         mm = ModelManager(catalog, [model], model, timeout_s=cfg.get("timeout_s", 300))
         load_t = time.perf_counter()
-        backend = mm.get(model)
+        try:
+            backend = mm.get(model)
+        except Exception as e:  # e.g. out of memory or disk; record it and continue with the next model
+            log.error("skip %s: failed to load: %s: %s", model, type(e).__name__, e)
+            records.append({"model": model, "status": f"TODO(run): failed to load: {type(e).__name__}: {str(e)[:200]}"})
+            records += _load_checkpoint(cfg, model, out_dir)
+            continue
         load_s = time.perf_counter() - load_t
         peak = _Peak()
         for dataset in cfg["datasets"]:
-            rows = load_jsonl(f"{dataset}.jsonl")[: cfg.get("limits", {}).get(dataset) or limit]
+            rows = _rows(cfg, dataset, limit)
             for row in rows:
                 row.setdefault("query", row.get("text"))
             for profile in cfg["profiles"]:
                 path = out_dir / f"{model}__{profile}__{dataset}.jsonl"
-                done = {}
-                if path.exists():
-                    for line in path.read_text().splitlines():
-                        r = json.loads(line)
-                        done[r["id"]] = r
+                done = {r["id"]: r for r in read_checkpoint(path)}
                 s2, emb, chunk, variant = _index_for(settings, cfg, dataset, profile)
                 key = (emb, chunk, variant)
                 if profile != "no_rag" and key not in retrievers:
@@ -107,9 +118,63 @@ def generate(cfg: dict, settings: Settings, out_dir: Path, limit: int | None) ->
                             if row_by_id(rows, r["id"]) is not None]
         records.append({"model": model, "status": "ok", "load_seconds": load_s, "peak_rss_gb": peak.gb,
                         **_gpu_mem()})
+        status_path.write_text(json.dumps(records[-1]))
         mm._loaded.clear()
         backend.close()
+        if os.environ.get("MHRAG_FREE_MODEL_CACHE") == "1":
+            free_model_cache(catalog[model])
     return records
+
+
+def _rows(cfg: dict, dataset: str, limit: int | None) -> list[dict]:
+    return load_jsonl(f"{dataset}.jsonl")[: cfg.get("limits", {}).get(dataset) or limit]
+
+
+def _complete(cfg: dict, model: str, out_dir: Path, limit: int | None) -> bool:
+    for dataset in cfg["datasets"]:
+        want = {r["id"] for r in _rows(cfg, dataset, limit)}
+        for profile in cfg["profiles"]:
+            have = {r["id"] for r in read_checkpoint(out_dir / f"{model}__{profile}__{dataset}.jsonl")}
+            if not want <= have:
+                return False
+    return True
+
+
+def read_checkpoint(path: Path) -> list[dict]:
+    """Answers in a checkpoint file. A run killed mid-write (e.g. at a session time limit) can leave a truncated
+    last line; it is dropped and the file rewritten, so the next append starts on a clean line."""
+    if not path.exists():
+        return []
+    text = path.read_text(encoding="utf-8")
+    rows, bad = [], 0
+    for line in text.splitlines():
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            bad += 1
+    if bad or (text and not text.endswith("\n")):
+        log.warning("%s: dropped %d incomplete line(s) from an interrupted run", path.name, bad)
+        path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), encoding="utf-8")
+    return rows
+
+
+def free_model_cache(spec) -> None:
+    """Delete a finished model's weights from the Hugging Face cache (MHRAG_FREE_MODEL_CACHE=1). A 21-model run
+    downloads several hundred GB, which does not fit on a Kaggle/Colab disk."""
+    repo = spec.raw.get("hf_id") or spec.raw.get("gguf_repo")
+    if not repo:
+        return
+    try:
+        from huggingface_hub import scan_cache_dir
+
+        cache = scan_cache_dir()
+        revs = [rev.commit_hash for r in cache.repos if r.repo_id == repo for rev in r.revisions]
+        if revs:
+            strategy = cache.delete_revisions(*revs)
+            strategy.execute()
+            log.info("freed %s from the model cache (%s)", strategy.expected_freed_size_str, repo)
+    except Exception as e:  # never fail the experiment over cache housekeeping
+        log.warning("could not free the cache for %s: %s", repo, e)
 
 
 def _load_checkpoint(cfg: dict, model: str, out_dir: Path) -> list[dict]:
@@ -119,10 +184,7 @@ def _load_checkpoint(cfg: dict, model: str, out_dir: Path) -> list[dict]:
         rows = load_jsonl(f"{dataset}.jsonl")
         for profile in cfg["profiles"]:
             path = out_dir / f"{model}__{profile}__{dataset}.jsonl"
-            if not path.exists():
-                continue
-            for line in path.read_text().splitlines():
-                r = json.loads(line)
+            for r in read_checkpoint(path):
                 row = row_by_id(rows, r["id"])
                 if row is not None:
                     recs.append({**r, "reference": _ref(row)})
@@ -168,7 +230,7 @@ def _gpu_mem() -> dict:
 
 
 # ------------------------------------------------------------------------------ scoring
-def score(records: list[dict], cfg: dict) -> list[dict]:
+def score(records: list[dict], cfg: dict, cache_dir: Path | None = None) -> list[dict]:
     answers = [r for r in records if "answer" in r]
     nli = NLIJudge(cfg.get("nli_model", "cross-encoder/nli-deberta-v3-base"))
     try:
@@ -199,7 +261,7 @@ def score(records: list[dict], cfg: dict) -> list[dict]:
         m.update(citation_stats(a, len(r.get("sources", []))))
         r["metrics"] = m
     _bertscore(answers, cfg)
-    _llm_judge(answers, cfg)
+    _llm_judge(answers, cfg, cache_dir)
     return answers
 
 
@@ -222,7 +284,7 @@ def _bertscore(answers, cfg):
         r["metrics"]["bertscore_model"] = model
 
 
-def _llm_judge(answers, cfg):
+def _llm_judge(answers, cfg, cache_dir: Path | None = None):
     jm = cfg.get("judge_model")
     if not jm:
         return
@@ -235,16 +297,30 @@ def _llm_judge(answers, cfg):
 
     backend = ModelManager(catalog, [jm], jm).get(jm)
     judge = LLMJudge(backend)
+    # Judge verdicts are cached per (judge, prompt version, answer), so a scoring pass interrupted by a session limit
+    # (or repeated after more models finish) does not call the API again for answers it has already judged.
+    cache_path = cache_dir / "judge_cache.jsonl" if cache_dir else None
+    cache = {c["key"]: c["metrics"] for c in (read_checkpoint(cache_path) if cache_path else [])}
     for r in answers:
         if not r.get("answer"):
             continue
         ref = r.get("reference")
         ref = ref if isinstance(ref, str) else (ref[0] if ref else None)
-        rub = judge.rubric(r["query"], r["answer"], ref)
-        if rub:
-            r["metrics"].update({f"judge_{k}": v for k, v in rub.items()})
-        if r["profile"] != "no_rag" and r.get("context"):
-            r["metrics"]["judge_faithfulness"] = judge.faithfulness(r["answer"], r["context"])
+        ctx = r.get("context") if r["profile"] != "no_rag" else None
+        key = hashlib.sha1(json.dumps([jm, JUDGE_VERSION, r["query"], r["answer"], ref, ctx]).encode()).hexdigest()
+        if key not in cache:
+            jmetrics = {}
+            rub = judge.rubric(r["query"], r["answer"], ref)
+            if rub:
+                jmetrics.update({f"judge_{k}": v for k, v in rub.items()})
+            if ctx:
+                jmetrics["judge_faithfulness"] = judge.faithfulness(r["answer"], ctx)
+            cache[key] = jmetrics
+            failed = not rub or (ctx and jmetrics.get("judge_faithfulness") is None)
+            if cache_path and not failed:  # failed calls (rate limits, parse errors) are retried next time
+                with open(cache_path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"key": key, "metrics": jmetrics}) + "\n")
+        r["metrics"].update(cache[key])
         r["metrics"]["judge_model"] = jm
 
 
@@ -329,7 +405,7 @@ def run_generation_experiment(cfg: dict, settings: Settings, limit: int | None =
     out_dir.mkdir(parents=True, exist_ok=True)
     records = generate(cfg, settings, out_dir, limit)
     model_info = [r for r in records if "status" in r]
-    answers = score([r for r in records if "answer" in r], cfg)
+    answers = score([r for r in records if "answer" in r], cfg, cache_dir=out_dir)
     with open(out_dir / "scored.jsonl", "w", encoding="utf-8") as f:
         for r in answers:
             f.write(json.dumps({k: v for k, v in r.items() if k != "context"}, ensure_ascii=False) + "\n")

@@ -147,6 +147,8 @@ reranked systems do, but unreranked hybrid retrieval and BM25 do not.
 **Still to run on a GPU** (Kaggle notebook): the chunk-size ablation (128/256/512), the local-model generation benchmark
 (Qwen2.5-1.5B, GPT-2, BART), the full multi-LLM benchmark and the LLM judge. Their tables in the paper show
 `TODO(run)` with the command until then.
+The Kaggle notebook is resumable across 12-hour sessions: attach its previous output as an input and run it
+again. Finished steps are skipped, and interrupted ones continue from their last saved answer.
 GPU-scale results (7–12B models, LLM judge) are marked `TODO(run)` until you run the Kaggle or Colab notebook.
 
 ## Reproducing every table
@@ -158,8 +160,8 @@ GPU-scale results (7–12B models, LLM judge) are marked `TODO(run)` until you r
 | Risk classifiers | `python -m scripts.train_risk_classifier` | `results/risk_classifier.json`, `paper/tables/risk_classifier*.tex` |
 | Safety gate | `python -m scripts.eval_safety --tag v2_devset` and `--data eval/data/safety_prompts_heldout.jsonl --tag v2_heldout` | `results/safety_gate_*.json` |
 | Latency | `python -m scripts.bench_latency --all` | `results/latency.json` |
-| Retrieval | `python -m scripts.run_eval --config configs/experiments/retrieval_main.yaml`; chunk sizes: `retrieval_chunks.yaml` (Kaggle cell 9) | `results/retrieval_*.json` |
-| Generation (small local models) | `python -m scripts.run_eval --config configs/experiments/generation_local.yaml` (Kaggle cell 10b, or a laptop in about 2 h) | `results/generation_local.json` |
+| Retrieval | `python -m scripts.run_eval --config configs/experiments/retrieval_main.yaml`; chunk sizes: `retrieval_chunks.yaml` (Kaggle step `retrieval_chunks`) | `results/retrieval_*.json` |
+| Generation (small local models) | `python -m scripts.run_eval --config configs/experiments/generation_local.yaml` (Kaggle step `generation_local`, or a laptop in about 2 h) | `results/generation_local.json` |
 | Generation (GPU) | [notebooks/kaggle_experiments.ipynb](notebooks/kaggle_experiments.ipynb) (Kaggle, recommended: ~30 free GPU h/week) or [notebooks/colab_experiments.ipynb](notebooks/colab_experiments.ipynb) | `results/generation_gpu.json` |
 | Paper numbers | `python -m scripts.paper_numbers` | `paper/numbers.tex`, `paper/tables/latency.tex` |
 | Everything on CPU | `bash scripts/run_all_local.sh` | all of the above |

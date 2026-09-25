@@ -4,6 +4,7 @@
 \small
 \caption{Retrieval on ParaphraseQA (n=58, 256-token chunks). R@k = at least one relevant chunk in the top $k$. 95\% bootstrap CIs in brackets. $^{\dagger}$ baseline (v1 embedder, dense); $^{*}$ significantly different from the baseline on nDCG@10 (paired bootstrap, Holm-corrected $p<0.05$). ms = median retrieval latency.}
 \label{tab:retrieval-main-paraphrase-qa}
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{llrrrrrr}
 \toprule
 System & Embedder & R@1 & R@5 & R@10 & MRR@10 & nDCG@10 & ms \\
@@ -31,4 +32,5 @@ Hybrid + MiniLM-CE & GTE-base & 0.845 & 0.879 & 0.879 & 0.862 {\scriptsize [0.77
 Hybrid + BGE-reranker & GTE-base & 0.741 & 0.879 & 0.879 & 0.807 {\scriptsize [0.718, 0.891]} & 0.801 {\scriptsize [0.713, 0.881]}$^{*}$ & 808 \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{table}

@@ -53,9 +53,11 @@ def main(argv=None) -> int:
         if not args.tables_only:
             if args.limit:
                 cfg["limit"] = args.limit
-            res = run_retrieval_experiment(cfg, s)
+            ckpt = out.with_suffix(".partial.jsonl")  # finished runs; an interrupted experiment resumes from here
+            res = run_retrieval_experiment(cfg, s, checkpoint=None if args.limit else ckpt)
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(json.dumps(res))
+            ckpt.unlink(missing_ok=True)
         retrieval_tables(json.loads(out.read_text()))
     elif cfg["kind"] == "generation":
         from eval.generation_eval import run_generation_experiment
