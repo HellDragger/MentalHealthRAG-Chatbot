@@ -299,12 +299,17 @@ is killing me'' was escalated by the classifier. (ii) Third-party disclosures wi
 lexicon covers (``a classmate posted that she wants to end her life'') were routed to the elevated tier instead of the
 third-party protocol. (iii) Implicit preparation statements (``I left notes for my family in my drawer'') scored
 between the two thresholds. (iv) Harmful requests phrased as general questions (``how do people usually kill
-themselves?'') evaded the method-request detector.
+themselves?'') evaded the method-request detector. \GateOnRealQuestions{} These are first-person help-seeking
+questions (``Where can I go to find therapy?''), which the informational-question guard does not cover; the classifier,
+trained on social-media posts, scores help-seeking vocabulary as risk. The gate thus fails safe, but it replaces useful
+answers with the crisis protocol.
 \paragraph{Generation} Small models frequently omitted inline citations and sometimes repeated text across list
 items. For example, one Qwen2.5-1.5B answer about antidepressant side effects copied the explanation of SIADH into a bullet
 about serotonin syndrome. The NLI faithfulness metric does not detect such within-answer copying when both sentences are
 individually entailed by the context. Answers that hit the 400-token cap are trimmed to the last complete sentence and
-labelled as shortened. \GenerationErrorExamples
+labelled as shortened. BART-large-CNN, a news summariser used as the ``QA'' model in the original prototype, does not
+answer questions: with naive RAG it reproduces the retrieved passage, which inflates its NLI faithfulness, and in the full
+pipeline it reproduces the start of the system instructions.
 
 % ==================================================================================================================
 \section{Limitations}\label{sec:limitations}

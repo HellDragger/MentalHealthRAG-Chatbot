@@ -207,7 +207,10 @@ def main():
     c_gl = "python -m scripts.run_eval --config configs/experiments/generation_local.yaml"
     if gl:
         parts = []
-        for model in dict.fromkeys(r["model"] for r in gl["summary"]):
+        order = (gl.get("config") or {}).get("models") or []
+        models = sorted(dict.fromkeys(r["model"] for r in gl["summary"]),
+                        key=lambda k: order.index(k) if k in order else len(order))
+        for model in models:  # in config order, so the deployed model comes first
             row = {(r["profile"], r["dataset"]): r for r in gl["summary"] if r["model"] == model}
             full, naive, norag = row.get(("full", "faq_gen")), row.get(("naive", "faq_gen")), row.get(("no_rag", "faq_gen"))
             if full and naive and full.get("faithfulness") and naive.get("faithfulness"):
@@ -224,7 +227,24 @@ def main():
                "columns remain \\todorun{set GROQ\\_API\\_KEY and rerun} where no judge was available.", c_gl)
     else:
         m.text("GenerationSummary", None, c_gl)
-    m.text("GenerationErrorExamples", "", c_gl)
+
+    # ---------------------------------------------------------------- gate on ordinary questions
+    ge = load("gate_escalation.json")
+    c_ge = "python -m scripts.eval_gate_escalation"
+    if ge and "faq_gen" in ge["datasets"] and "oos_questions" in ge["datasets"]:
+        def esc(ds):
+            d = ge["datasets"][ds]
+            return d["labels"].get("crisis", 0), d["labels"].get("elevated", 0), d["n"], d["escalations_by_source"]
+        fc, fe, fn, fsrc = esc("faq_gen")
+        oc, oe, on, osrc = esc("oos_questions")
+        srcs = {k.split("|")[1] for k in list(fsrc) + list(osrc)}
+        who = "the classifier alone" if srcs == {"classifier"} else "+".join(sorted(srcs))
+        m.text("GateOnRealQuestions",
+               f"On the {fn} FAQ-Gen questions, all of them informational, the deployed gate sent {fc} to the crisis "
+               f"protocol and {fe} to the elevated tier; on the {on} out-of-scope questions it sent {oc} and {oe}. "
+               f"All of these escalations were triggered by {who}.", c_ge)
+    else:
+        m.text("GateOnRealQuestions", None, c_ge)
 
     # ---------------------------------------------------------------- abstract
     parts = []

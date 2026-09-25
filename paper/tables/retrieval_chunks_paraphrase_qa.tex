@@ -1,0 +1,31 @@
+% Auto-generated from results/retrieval_chunks.json -- do not edit by hand.
+\begin{table}[t]
+\centering
+\small
+\caption{Chunk-size ablation on ParaphraseQA (n=58): nDCG@10 for 128/256/512-token chunks (MiniLM is capped at its 256-token input limit).}
+\label{tab:retrieval-chunks-paraphrase-qa}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{lrrrr}
+\toprule
+System & Embedder & nDCG@10 c128 & nDCG@10 c256 & nDCG@10 c512 \\
+\midrule
+Dense & MiniLM-L6 & 0.686 & 0.675 & 0.675 \\
+Hybrid (RRF) & MiniLM-L6 & 0.722 & 0.690 & 0.690 \\
+Hybrid + MiniLM-CE & MiniLM-L6 & 0.822 & 0.824 & 0.824 \\
+BM25 & -- & 0.603 & 0.631 & 0.624 \\
+Dense & BGE-small & 0.772 & 0.771 & 0.796 \\
+Hybrid (RRF) & BGE-small & 0.697 & 0.716 & 0.707 \\
+Hybrid + MiniLM-CE & BGE-small & 0.837 & 0.841 & 0.872 \\
+Dense & BGE-base & 0.793 & 0.812 & 0.839 \\
+Hybrid (RRF) & BGE-base & 0.708 & 0.717 & 0.723 \\
+Hybrid + MiniLM-CE & BGE-base & 0.837 & 0.851 & 0.890 \\
+Dense & E5-base & 0.772 & 0.795 & 0.821 \\
+Hybrid (RRF) & E5-base & 0.710 & 0.719 & 0.704 \\
+Hybrid + MiniLM-CE & E5-base & 0.824 & 0.858 & 0.900 \\
+Dense & GTE-base & 0.794 & 0.798 & 0.833 \\
+Hybrid (RRF) & GTE-base & 0.715 & 0.723 & 0.725 \\
+Hybrid + MiniLM-CE & GTE-base & 0.835 & 0.834 & 0.881 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}

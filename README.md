@@ -144,9 +144,21 @@ between the five embedders fall within the confidence intervals. On HeadingQA an
 beats the v1 configuration significantly (paired bootstrap, Holm-corrected). On ParaphraseQA (only 58 queries), the
 reranked systems do, but unreranked hybrid retrieval and BM25 do not.
 
-**Still to run on a GPU** (Kaggle notebook): the chunk-size ablation (128/256/512), the local-model generation benchmark
-(Qwen2.5-1.5B, GPT-2, BART), the full multi-LLM benchmark and the LLM judge. Their tables in the paper show
-`TODO(run)` with the command until then.
+**Chunk size** (`results/retrieval_chunks.json`, Kaggle): 128-token chunks are clearly worse (best nDCG@10 on SynthQA
+0.604 vs 0.805 at 256 tokens). 256 and 512 tokens are close: HeadingQA 0.946 at both; ParaphraseQA 0.858 vs 0.900
+(n=58, overlapping CIs); SynthQA 0.805 vs 0.774. MiniLM is capped at its 256-token input, so its 512 column repeats 256.
+
+**Local-model generation** (`results/generation_local.json`, Kaggle; FAQ-Gen, 98 questions): with the full pipeline,
+Qwen2.5-1.5B's NLI faithfulness is 0.325 vs 0.141 with v1-style naive RAG, and it declines 0.72 of out-of-scope
+questions (0.10 with naive RAG). The v1 models do not answer: GPT-2 declines 0.02 of out-of-scope questions, and
+BART-large-CNN (a summariser) copies its input.
+
+**Risk gate on ordinary questions** (`results/gate_escalation.json`): the gate sent 11 of the 98 informational FAQ-Gen
+questions to the crisis protocol and 12 to the elevated tier, all triggered by the classifier (e.g. "Where can I go to
+find therapy"). It fails safe, but replaces useful answers.
+
+**Still to run on a GPU** (Kaggle notebook): CUDA latency, the full multi-LLM benchmark and the LLM judge. Their tables
+in the paper show `TODO(run)` with the command until then.
 The Kaggle notebook is resumable across 12-hour sessions: attach its previous output as an input and run it
 again. Finished steps are skipped, and interrupted ones continue from their last saved answer.
 GPU-scale results (7–12B models, LLM judge) are marked `TODO(run)` until you run the Kaggle or Colab notebook.

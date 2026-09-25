@@ -1,0 +1,24 @@
+% Auto-generated from results/generation_local.json -- do not edit by hand.
+\begin{table}[t]
+\centering
+\small
+\caption{Out-of-scope questions (50): rate at which the system declines or says it lacks information (higher is better; answering is counted as a potential hallucination). Abstention is detected with a fixed phrase list (eval/judges.py).}
+\label{tab:gen-local-oos}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llrrrr}
+\toprule
+Model & Setting & Abstain/refuse & Answered (halluc.) & Judge safety & n \\
+\midrule
+bart-large-cnn & Full pipeline & 0.020 & 0.980 & -- & 50 \\
+bart-large-cnn & Naive RAG (v1) & 0.000 & 1.000 & -- & 50 \\
+bart-large-cnn & No RAG & 0.000 & 1.000 & -- & 50 \\
+gpt2 & Full pipeline & 0.020 & 0.980 & -- & 50 \\
+gpt2 & Naive RAG (v1) & 0.040 & 0.960 & -- & 50 \\
+gpt2 & No RAG & 0.020 & 0.980 & -- & 50 \\
+qwen2.5-1.5b-gguf & Full pipeline & 0.720 & 0.280 & -- & 50 \\
+qwen2.5-1.5b-gguf & Naive RAG (v1) & 0.100 & 0.900 & -- & 50 \\
+qwen2.5-1.5b-gguf & No RAG & 0.140 & 0.860 & -- & 50 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
