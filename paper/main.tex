@@ -242,6 +242,9 @@ and judge score as a verbosity-bias check. Settings are compared with paired boo
 
 % ==================================================================================================================
 \section{Results}
+Table~\ref{tab:v1-vs-v2} summarises the v2 system against the prototype's configuration on the same data; the
+subsections below give the full comparisons.
+\tableorTODO{v1_vs_v2}{python -m scripts.paper_numbers}
 \subsection{Knowledge base}
 Of \NPDFs{} PDFs, \NPDFsParsed{} had a text layer (one easy-read booklet is image-only). The final index has
 \NChunks{} chunks (median \ChunkMedianTokens{} tokens).
@@ -285,7 +288,8 @@ was \GateVTwoHeldAnySafety{}. The lexicon alone generalised worst (held-out reca
 % ==================================================================================================================
 \section{Ablations}
 \begin{itemize}[leftmargin=*]
-\item \emph{Chunk size} (128/256/512): \tableref{retrieval_chunks_heading_qa}{tab:retrieval-chunks-heading-qa}.
+\item \emph{Chunk size} (128/256/512): \ChunkSummary{} Short chunks lose context, and 256 and 512 tokens perform
+      similarly, which supports the 256-token default (\tableref{retrieval_chunks_heading_qa}{tab:retrieval-chunks-heading-qa}).
 \item \emph{Reranker} (none / MiniLM / BGE): Tables~\ref{tab:retrieval-main-heading-qa}--\ref{tab:retrieval-main-paraphrase-qa}. Cross-encoder reranking gave the largest gains on HeadingQA and ParaphraseQA. On SynthQA, only the BGE reranker improved on unreranked hybrid retrieval. After reranking, differences between embedders fell within the confidence intervals.
 \item \emph{Gate components} (lexicon only / classifier only / combined): Table~\ref{tab:safety-gate-v2-heldout}.
 \item \emph{Corpus composition}: Mind-only versus all sources (\path{MHRAG_INGEST__INCLUDE_WEB_ARTICLES=false}) and adding the

@@ -246,6 +246,89 @@ def main():
     else:
         m.text("GateOnRealQuestions", None, c_ge)
 
+    # ---------------------------------------------------------------- chunk-size ablation
+    rc = load("retrieval_chunks.json")
+    c_rc = "python -m scripts.run_eval --config configs/experiments/retrieval_chunks.yaml"
+    if rc:
+        sizes = sorted({r["chunk_tokens"] for r in rc["runs"]})
+        per_ds = []
+        for ds in ("heading_qa", "paraphrase_qa", "synth_qa"):
+            best = [max((r["summary"]["nDCG@10"]["mean"] for r in rc["runs"]
+                         if r["dataset"] == ds and r["chunk_tokens"] == c), default=None) for c in sizes]
+            if all(b is not None for b in best):
+                per_ds.append(f"{'/'.join(f3(b) for b in best)} on {DS[ds]}")
+        m.text("ChunkSummary", "The best nDCG@10 over all systems and embedders with "
+               f"{'/'.join(str(c) for c in sizes)}-token chunks was " + ", ".join(per_ds) +
+               ". MiniLM is capped at its 256-token input, so its 512-token results repeat those at 256 tokens.", c_rc)
+    else:
+        m.text("ChunkSummary", None, c_rc)
+
+    # ---------------------------------------------------------------- v1 vs v2 overview
+    st = get_settings()
+    ge = load("gate_escalation.json")
+    gl_first = None
+    if gl:
+        order = (gl.get("config") or {}).get("models") or []
+        gl_first = order[0] if order else None
+    ov = []
+
+    def cell(x, nd=3):
+        return "--" if x is None else (f"{x:.{nd}f}" if isinstance(x, float) else str(x))
+
+    if rm:
+        for ds in ("heading_qa", "synth_qa", "paraphrase_qa"):
+            runs = [r for r in rm["runs"] if r["dataset"] == ds and r["chunk_tokens"] == st.chunking.chunk_tokens]
+            b = next((r for r in runs if r["system"] == "dense" and r["embedder"] == "minilm"), None)
+            d = next((r for r in runs if r["mode"] == st.retrieval.mode and r.get("reranker") == st.retrieval.reranker
+                      and r["embedder"] == st.index.embedder), None)
+            if not (b and d):
+                continue
+            fam = rm["significance"].get(f"{ds}|c{d['chunk_tokens']}|nDCG@10", {})
+            p = fam.get("p_bootstrap_holm", {}).get(f"{d['system']}|{d['embedder']}|c{d['chunk_tokens']}")
+            mark = "$^{*}$" if p is not None and p < 0.05 else ""
+            ov.append(["Retrieval", f"nDCG@10, {DS[ds]} (n={d['n_queries']})",
+                       cell(b["summary"]["nDCG@10"]["mean"]), cell(d["summary"]["nDCG@10"]["mean"]) + mark])
+    if v1 and cpu:
+        ov.append(["Latency", "Time to first text, CPU (s)", f"{v1['e2e_ms']['p50'] / 1000:.1f}",
+                   f"{cpu['ttft_ms']['p50'] / 1000:.1f}"])
+        ov.append(["", "Generation speed, CPU (tokens/s)", f"{v1['tokens_per_s']['p50']:.1f}",
+                   f"{cpu['tokens_per_s']['p50']:.1f}"])
+    if gl and gl_first:
+        row = {(r["profile"], r["dataset"]): r for r in gl["summary"] if r["model"] == gl_first}
+
+        def g(profile, ds, k):
+            return get(row.get((profile, ds)), k, "mean")
+        ov.append(["Generation", "NLI faithfulness, FAQ-Gen", cell(g("naive", "faq_gen", "faithfulness")),
+                   cell(g("full", "faq_gen", "faithfulness"))])
+        ov.append(["", "Answers with a citation, FAQ-Gen", cell(g("naive", "faq_gen", "has_citation"), 2),
+                   cell(g("full", "faq_gen", "has_citation"), 2)])
+        ov.append(["", "Out-of-scope questions declined", cell(g("naive", "oos_questions", "abstained"), 2),
+                   cell(g("full", "oos_questions", "abstained"), 2)])
+    hv = get(load("safety_gate_v2_heldout.json"), "variants", dep)
+    if hv:
+        ov.append(["Safety", "Crisis recall, held-out red-team set", "none", cell(hv["crisis_recall_any_escalation"])])
+        ov.append(["", "Escalation false-positive rate, held-out", "none", cell(hv["escalation"]["false_positive_rate"])])
+    if ge and "faq_gen" in ge["datasets"]:
+        fq = ge["datasets"]["faq_gen"]
+        ov.append(["", "FAQ-Gen questions sent to the crisis protocol", "none",
+                   f"{fq['labels'].get('crisis', 0)}/{fq['n']}"])
+    for i in range(len(ov) - 1, 0, -1):  # name each aspect once
+        if ov[i][0] and ov[i][0] == next((r[0] for r in reversed(ov[:i]) if r[0]), None):
+            ov[i][0] = ""
+    if ov:
+        model = gl_first.replace("_", "\\_") if gl_first else "--"
+        write_table("v1_vs_v2", ["Aspect", "Measure", "v1 configuration", "v2 (deployed)"], ov,
+                    caption="The v2 system against the prototype's (v1) configuration, both run on the same knowledge base "
+                            "and questions. Retrieval: dense MiniLM (v1) versus the deployed "
+                            f"{SYS.get('hybrid+ce' if st.retrieval.reranker == 'minilm-ce' else 'hybrid+bge-rr')} "
+                            f"({EMB.get(st.index.embedder, st.index.embedder)} embeddings), "
+                            f"{st.chunking.chunk_tokens}-token chunks; $^{{*}}$ significant (paired bootstrap, "
+                            "Holm-corrected $p<0.05$). Latency: Qwen2.5-1.5B-Instruct on the laptop CPU (\\Hardware{}); "
+                            "the v1 settings do not stream, so the first text appears with the full answer. Generation: "
+                            f"{model}, v1-style naive RAG versus the full pipeline. The prototype had no safety handling, "
+                            "and its vector store was empty at run time (CHANGELOG B1).",
+                    label="tab:v1-vs-v2", align="llrr", source="results/*.json")
+
     # ---------------------------------------------------------------- abstract
     parts = []
     if get(load("safety_gate_v2_heldout.json"), "variants", dep):
@@ -272,6 +355,18 @@ def main():
     if v1 and cpu:
         parts.append(f"Quantised CPU inference with streaming reduced the time to first token from "
                      f"{v1['e2e_ms']['p50'] / 1000:.0f}~s to {cpu['ttft_ms']['p50'] / 1000:.1f}~s.")
+    if gl and gl_first:
+        fn, fu = get(row.get(("naive", "faq_gen")), "faithfulness", "mean"), get(row.get(("full", "faq_gen")), "faithfulness", "mean")
+        on, ou = (get(row.get(("naive", "oos_questions")), "abstained", "mean"),
+                  get(row.get(("full", "oos_questions")), "abstained", "mean"))
+        if None not in (fn, fu, on, ou):
+            txt = (f"With the same 1.5B model, the full pipeline raised NLI faithfulness on FAQ-Gen from {f3(fn)} to "
+                   f"{f3(fu)} and the share of out-of-scope questions it declined from {on:.2f} to {ou:.2f}")
+            if ge and "faq_gen" in ge["datasets"]:
+                fq = ge["datasets"]["faq_gen"]
+                txt += (f", but the risk gate sent {fq['labels'].get('crisis', 0)} of {fq['n']} informational FAQ "
+                        "questions to the crisis protocol")
+            parts.append(txt + ".")
     m.text("AbstractResults", " ".join(p for p in parts if p), "run all experiments (scripts/run_all_local.sh)")
 
     OUT.write_text("% Auto-generated by scripts/paper_numbers.py from results/ -- do not edit by hand.\n"
