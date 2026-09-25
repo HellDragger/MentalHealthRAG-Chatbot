@@ -161,6 +161,10 @@ find therapy"). It fails safe, but replaces useful answers.
 in the paper show `TODO(run)` with the command until then.
 The Kaggle notebook is resumable across 12-hour sessions: attach its previous output as an input and run it
 again. Finished steps are skipped, and interrupted ones continue from their last saved answer.
+To bring results back, download `mhrag_results.zip` from the notebook's Output tab and run
+`python -m scripts.import_results ~/Downloads/mhrag_results.zip` (add `--dry-run` to preview). It imports only the
+experiments that run finished, never replaces a local measurement with a pending one, and regenerates the paper tables
+and numbers.
 GPU-scale results (7–12B models, LLM judge) are marked `TODO(run)` until you run the Kaggle or Colab notebook.
 
 ## Reproducing every table

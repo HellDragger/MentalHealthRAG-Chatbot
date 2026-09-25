@@ -293,7 +293,7 @@ was \GateVTwoHeldAnySafety{}. The lexicon alone generalised worst (held-out reca
 \end{itemize}
 
 % ==================================================================================================================
-\section{Error analysis}
+\section{Error analysis}\label{sec:error-analysis}
 \paragraph{Safety gate} The remaining held-out errors fall into four groups. (i) Figurative language: ``this traffic
 is killing me'' was escalated by the classifier. (ii) Third-party disclosures without a first-person pronoun pattern the
 lexicon covers (``a classmate posted that she wants to end her life'') were routed to the elevated tier instead of the
@@ -322,6 +322,10 @@ pipeline it reproduces the start of the system instructions.
 \item \textbf{Classifier training data.} The suicide-risk corpus is pre-normalised (stopwords removed), so the classifier
       cannot use most negation cues. Its labels come from subreddit membership, not clinical assessment, and cross-dataset
       transfer to depression and stress corpora is weak.
+\item \textbf{Over-escalation of help-seeking questions.} The gate favours recall: first-person help-seeking questions
+      are escalated by the classifier (Section~\ref{sec:error-analysis}). Capping the classifier at the elevated tier
+      would remove these escalations but also lower held-out crisis recall. A narrower rule for help-seeking questions,
+      evaluated on a new held-out set, is left for future work.
 \item \textbf{Knowledge base scope.} Content is mostly UK-centric (Mind) with a North American FAQ. Some printed pages are
       truncated, one booklet has no text layer, and seven sources are non-clinical web articles, including reader blogs.
       Booklet citations link to Mind's information hub rather than the exact page.
