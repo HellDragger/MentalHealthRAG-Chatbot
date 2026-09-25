@@ -1,0 +1,24 @@
+% Auto-generated from results/generation_local.json -- do not edit by hand.
+\begin{table}[t]
+\centering
+\small
+\caption{Generation quality on counsel-gen. Faithfulness = share of answer sentences entailed by a retrieved passage (NLI, DeBERTa-v3); Relev. = question-answer embedding cosine; Cites = share of answers with an inline citation; Judge = LLM-as-judge (1--5), `--' where not run; Tmpl. = share of questions the risk gate answered with a fixed safety template instead of the model (full pipeline only; these are included in the other columns).}
+\label{tab:gen-local-counsel-gen}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llrrrrrrrrr}
+\toprule
+Model & Setting & Faithful. & Relev. & ROUGE-L & BERTScore & Flesch & Cites & Judge help. & Tmpl. & TTFT s \\
+\midrule
+bart-large-cnn & Full pipeline & 0.011 & 0.585 & 0.103 & 0.814 & 44.3 & 0.00 & -- & 0.26 & 1.43 \\
+bart-large-cnn & Naive RAG (v1) & 0.523 & 0.706 & 0.117 & 0.835 & 66.6 & 0.00 & -- & -- & 1.34 \\
+bart-large-cnn & No RAG & -- & 0.548 & 0.075 & 0.815 & 14.0 & 0.00 & -- & -- & 1.21 \\
+gpt2 & Full pipeline & 0.003 & 0.618 & 0.103 & 0.814 & 55.4 & 0.02 & -- & 0.26 & 0.02 \\
+gpt2 & Naive RAG (v1) & 0.000 & 0.628 & 0.092 & 0.818 & 67.1 & 0.00 & -- & -- & 0.04 \\
+gpt2 & No RAG & -- & 0.630 & 0.100 & 0.821 & 69.9 & 0.00 & -- & -- & 0.04 \\
+qwen2.5-1.5b-gguf & Full pipeline & 0.215 & 0.699 & 0.138 & 0.827 & 51.9 & 0.14 & -- & 0.26 & 0.42 \\
+qwen2.5-1.5b-gguf & Naive RAG (v1) & 0.058 & 0.743 & 0.148 & 0.834 & 49.9 & 0.00 & -- & -- & 0.07 \\
+qwen2.5-1.5b-gguf & No RAG & -- & 0.750 & 0.149 & 0.835 & 52.4 & 0.00 & -- & -- & 0.04 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}

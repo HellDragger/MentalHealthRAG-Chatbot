@@ -1,0 +1,26 @@
+% Auto-generated from results/*.json -- do not edit by hand.
+\begin{table}[t]
+\centering
+\small
+\caption{The v2 system against the prototype's (v1) configuration, both run on the same knowledge base and questions. Retrieval: dense MiniLM (v1) versus the deployed hybrid retrieval with MiniLM cross-encoder reranking (BGE-small embeddings), 256-token chunks; $^{*}$ significant (paired bootstrap, Holm-corrected $p<0.05$). Latency: Qwen2.5-1.5B-Instruct on the laptop CPU (\Hardware{}); the v1 settings do not stream, so the first text appears with the full answer. Generation: qwen2.5-1.5b-gguf, v1-style naive RAG versus the full pipeline. The prototype had no safety handling, and its vector store was empty at run time (CHANGELOG B1).}
+\label{tab:v1-vs-v2}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{llrr}
+\toprule
+Aspect & Measure & v1 configuration & v2 (deployed) \\
+\midrule
+Retrieval & nDCG@10, HeadingQA (n=561) & 0.759 & 0.940$^{*}$ \\
+ & nDCG@10, SynthQA (n=189) & 0.637 & 0.792$^{*}$ \\
+ & nDCG@10, ParaphraseQA (n=58) & 0.675 & 0.841$^{*}$ \\
+Latency & Time to first text, CPU (s) & 79.4 & 5.6 \\
+ & Generation speed, CPU (tokens/s) & 3.4 & 24.6 \\
+Generation & NLI faithfulness, FAQ-Gen & 0.141 & 0.325 \\
+ & Answers with a citation, FAQ-Gen & 0.00 & 0.22 \\
+ & Out-of-scope questions declined & 0.10 & 0.72 \\
+Safety & Crisis recall, held-out red-team set & none & 0.833 \\
+ & Escalation false-positive rate, held-out & none & 0.100 \\
+ & FAQ-Gen questions sent to the crisis protocol & none & 11/98 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}

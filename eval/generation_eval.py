@@ -452,6 +452,16 @@ def _cell(row, m, nd=3):
     return f"{v['mean']:.{nd}f}"
 
 
+SAFETY_TEMPLATES = ("crisis", "harmful_request", "third_party")  # gate labels answered with a template, not generated
+
+
+def _template_share(row: dict) -> str:
+    labels = row.get("gate_labels") or {}
+    if row["profile"] != "full" or not labels:
+        return "--"
+    return f"{sum(v for k, v in labels.items() if k in SAFETY_TEMPLATES) / row['n']:.2f}"
+
+
 def render_tables(res: dict) -> None:
     name = res["name"]
     rows = res["summary"]
@@ -473,13 +483,14 @@ def render_tables(res: dict) -> None:
             table.append([esc(r["model"]), PROFILE_NAMES.get(r["profile"], r["profile"]), _cell(r, "faithfulness"),
                           _cell(r, "answer_relevance"), _cell(r, "rougeL"), _cell(r, "bertscore_f1"),
                           _cell(r, "flesch", 1), _cell(r, "has_citation", 2), _cell(r, "judge_helpfulness", 2),
-                          fmt(r["ttft_ms"]["p50"] / 1000, 2) if r.get("ttft_ms") else "--"])
+                          _template_share(r), fmt(r["ttft_ms"]["p50"] / 1000, 2) if r.get("ttft_ms") else "--"])
         write_table(f"generation_{name}_{dataset}",
                     ["Model", "Setting", "Faithful.", "Relev.", "ROUGE-L", "BERTScore", "Flesch", "Cites", "Judge help.",
-                     "TTFT s"], table,
+                     "Tmpl.", "TTFT s"], table,
                     caption=f"Generation quality on {dataset.replace('_', '-')}. Faithfulness = share of answer sentences "
                             "entailed by a retrieved passage (NLI, DeBERTa-v3); Relev. = question-answer embedding "
                             "cosine; Cites = share of answers with an inline citation; Judge = LLM-as-judge (1--5), "
-                            "`--' where not run.",
-                    label=f"tab:gen-{name}-{dataset.replace('_', '-')}", align="llrrrrrrrr",
+                            "`--' where not run; Tmpl. = share of questions the risk gate answered with a fixed safety "
+                            "template instead of the model (full pipeline only; these are included in the other columns).",
+                    label=f"tab:gen-{name}-{dataset.replace('_', '-')}", align="llrrrrrrrrr",
                     source=f"results/generation_{name}.json")
