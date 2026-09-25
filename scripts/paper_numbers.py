@@ -144,7 +144,7 @@ def main():
     rows = []
     names = {"v1_hf_fp32_cpu": "v1 settings (fp32, CPU, no streaming)", "v2_llamacpp_cpu": "v2 llama.cpp Q4\\_K\\_M, CPU",
              "v2_llamacpp_metal": "v2 llama.cpp Q4\\_K\\_M, Metal", "v2_hf_mps": "v2 transformers fp16, MPS",
-             "v2_hf_cuda": "v2 transformers bf16, CUDA", "v2_hf_cuda_4bit": "v2 transformers NF4, CUDA",
+             "v2_hf_cuda": "v2 transformers 16-bit, CUDA", "v2_hf_cuda_4bit": "v2 transformers NF4, CUDA",
              "v2_api": "v2 Groq API (Llama-3.3-70B)"}
     for k, label in names.items():
         v = lat.get(k)

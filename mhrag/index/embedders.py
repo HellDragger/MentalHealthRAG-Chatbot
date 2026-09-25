@@ -3,9 +3,11 @@ its identity (model, backend, prefixes, dim) is written to the index manifest (f
 
 from __future__ import annotations
 
+import gc
 import hashlib
 import logging
 import re
+import sys
 from functools import lru_cache
 
 import numpy as np
@@ -65,7 +67,15 @@ class SentenceTransformerEmbedder(Embedder):
         self.dim = int(get_dim())
 
     def _encode(self, texts, batch_size):
-        return self.model.encode(texts, batch_size=batch_size, show_progress_bar=False, convert_to_numpy=True)
+        while True:
+            try:
+                return self.model.encode(texts, batch_size=batch_size, show_progress_bar=False, convert_to_numpy=True)
+            except RuntimeError as e:  # torch.OutOfMemoryError subclasses RuntimeError
+                if "out of memory" not in str(e).lower() or batch_size <= 1:
+                    raise
+                free_accelerator_memory()
+                batch_size //= 2
+                log.warning("%s: out of GPU memory; retrying with batch size %d", self.key, batch_size)
 
 
 class FastEmbedEmbedder(Embedder):
@@ -129,6 +139,21 @@ def make_embedder(key: str, cfg: EmbedderCfg, backend: str = "auto") -> Embedder
         raise RuntimeError(
             f"No embedding backend available for {cfg.model}: install sentence-transformers or fastembed."
         ) from None
+
+
+def free_accelerator_memory() -> None:
+    """Return cached CUDA memory to the device (only if torch is already imported)."""
+    gc.collect()
+    torch = sys.modules.get("torch")
+    if torch is not None and torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+
+def release_models() -> None:
+    """Drop cached embedders and free their GPU memory. Experiments that loop over many models call this between
+    models; otherwise every embedder and cross-encoder stays resident and a 16 GB GPU runs out."""
+    cached_embedder.cache_clear()
+    free_accelerator_memory()
 
 
 @lru_cache(maxsize=4)

@@ -69,7 +69,7 @@ class LlamaCppBackend(Backend):
                     yield strip_reasoning(delta) if "<think>" in delta else delta
             self.last_usage = {"completion_tokens": n}
         except Exception as e:
-            raise BackendError(f"llama.cpp generation failed: {type(e).__name__}") from e
+            raise BackendError(f"llama.cpp generation failed: {type(e).__name__}: {str(e)[:200]}") from e
 
     def close(self):
         try:
