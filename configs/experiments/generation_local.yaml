@@ -10,7 +10,8 @@ datasets: [faq_gen, oos_questions, counsel_gen]
 limits: {counsel_gen: 50}
 naive: {embedder: minilm, chunk_tokens: 48}   # v1: MiniLM, 200-character chunks (~45 tokens), top-2
 temperature: 0.0
-judge_model: llama-3.3-70b-groq   # needs GROQ_API_KEY; rubric/LLM-faithfulness left TODO(run) otherwise
+judge_model: gpt-oss-120b-groq    # needs GROQ_API_KEY; rubric/LLM-faithfulness left TODO(run) otherwise
+judge_sample: null                 # judge every answer; or N = a fixed sample of N questions per dataset
 nli_model: cross-encoder/nli-deberta-v3-base
 bertscore_model: roberta-large
 timeout_s: 300

@@ -71,11 +71,22 @@ def main(argv=None) -> int:
             if unknown:
                 raise SystemExit(f"--models not in the experiment config: {unknown}")
             cfg["run_models"] = args.models
+        from eval.generation_eval import RateLimited
+
         if not args.tables_only:
-            res = run_generation_experiment(cfg, s, limit=args.limit)
+            try:
+                res = run_generation_experiment(cfg, s, limit=args.limit)
+            except RateLimited as e:
+                print(f"API quota exhausted ({e}). All answers so far are saved; run again later to continue.")
+                return 75
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(json.dumps(res, indent=1))
-        generation_tables(json.loads(out.read_text()))
+        res = json.loads(out.read_text())
+        generation_tables(res)
+        if res.get("judge_status") == "incomplete" and not args.tables_only:
+            print(f"wrote {out}, but the LLM judge is incomplete (API quota); its columns stay TODO(run). "
+                  "Run again later: cached verdicts are reused.")
+            return 75
     else:
         raise SystemExit(f"unknown kind {cfg['kind']}")
     print(f"wrote {out}")

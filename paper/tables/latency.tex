@@ -15,7 +15,7 @@ v2 llama.cpp Q4\_K\_M, Metal & qwen2.5-1.5b-gguf & 1.42 & 7.5 & 9.1 & 43.8 & 1.9
 v2 transformers fp16, MPS & qwen2.5-1.5b-instruct & 1.51 & 15.8 & 22.6 & 17.5 & 3.7 \\
 v2 transformers 16-bit, CUDA & -- & \multicolumn{5}{l}{\todorun{python -m scripts.bench\_latency --config v2\_hf\_cuda}} \\
 v2 transformers NF4, CUDA & -- & \multicolumn{5}{l}{\todorun{python -m scripts.bench\_latency --config v2\_hf\_cuda\_4bit}} \\
-v2 Groq API (Llama-3.3-70B) & -- & \multicolumn{5}{l}{\todorun{python -m scripts.bench\_latency --config v2\_api}} \\
+v2 Groq API (gpt-oss-120b) & -- & \multicolumn{5}{l}{\todorun{python -m scripts.bench\_latency --config v2\_api}} \\
 \bottomrule
 \end{tabular}
 \end{adjustbox}

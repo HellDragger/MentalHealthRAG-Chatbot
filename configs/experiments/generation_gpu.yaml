@@ -31,7 +31,8 @@ datasets: [faq_gen, oos_questions, counsel_gen]
 limits: {counsel_gen: 100}
 naive: {embedder: minilm, chunk_tokens: 48}
 temperature: 0.0
-judge_model: llama-3.3-70b-groq
+judge_model: gpt-oss-120b-groq
+judge_sample: null                 # judge every answer; or N = a fixed sample of N questions per dataset
 nli_model: cross-encoder/nli-deberta-v3-base
 bertscore_model: roberta-large
 timeout_s: 600

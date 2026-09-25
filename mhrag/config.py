@@ -71,7 +71,7 @@ class RerankerCfg(BaseModel):
 
 class LLMCfg(BaseModel):
     model: str = "qwen2.5-1.5b-gguf"  # or "auto": first available model in auto_preference
-    auto_preference: list[str] = Field(default_factory=lambda: ["llama-3.3-70b-groq", "qwen2.5-1.5b-gguf", "mock"])
+    auto_preference: list[str] = Field(default_factory=lambda: ["gpt-oss-120b-groq", "llama-3.3-70b-groq", "qwen2.5-1.5b-gguf", "mock"])
     served_models: list[str] = Field(default_factory=lambda: ["*"])
     max_new_tokens: int = 400
     temperature: float = 0.2

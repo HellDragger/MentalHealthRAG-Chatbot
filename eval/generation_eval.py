@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import time
 from pathlib import Path
 
@@ -31,6 +32,11 @@ from mhrag.runtime import build_gate
 
 log = logging.getLogger(__name__)
 PROFILES = ("no_rag", "naive", "full")
+_NO_ACCESS = re.compile(r"HTTP (401|403|404)\b")  # the API key cannot use this model: retrying will not help
+
+
+class RateLimited(RuntimeError):
+    """An API quota ran out. Everything so far is checkpointed; the run exits non-zero and a later run continues."""
 
 
 # ------------------------------------------------------------------------------ generation
@@ -80,6 +86,7 @@ def generate(cfg: dict, settings: Settings, out_dir: Path, limit: int | None) ->
             continue
         load_s = time.perf_counter() - load_t
         peak = _Peak()
+        no_access = None
         for dataset in cfg["datasets"]:
             rows = _rows(cfg, dataset, limit)
             for row in rows:
@@ -112,13 +119,27 @@ def generate(cfg: dict, settings: Settings, out_dir: Path, limit: int | None) ->
                                "timing": res.get("timing", {}), "usage": res.get("usage", {}), "error": err}
                         f.write(json.dumps(rec, ensure_ascii=False) + "\n")
                         f.flush()
+                        if err and "HTTP 429" in err:
+                            raise RateLimited(f"{model}: {err[:300]}")
+                        if err and _NO_ACCESS.search(err):
+                            no_access = err
+                            break
                         done[row["id"]] = rec
+                if no_access:
+                    break
                 log.info("%s %s %s: %d answers", model, profile, dataset, len(done))
                 records += [{**r, "reference": _ref(row_by_id(rows, r["id"]))} for r in done.values()
                             if row_by_id(rows, r["id"]) is not None]
-        records.append({"model": model, "status": "ok", "load_seconds": load_s, "peak_rss_gb": peak.gb,
-                        **_gpu_mem()})
-        status_path.write_text(json.dumps(records[-1]))
+            if no_access:
+                break
+        if no_access:
+            log.error("skip %s: %s", model, no_access[:300])
+            records = [r for r in records if r.get("model") != model]
+            records.append({"model": model, "status": f"TODO(run): no access with this API key: {no_access[:200]}"})
+        else:
+            records.append({"model": model, "status": "ok", "load_seconds": load_s, "peak_rss_gb": peak.gb,
+                            **_gpu_mem()})
+            status_path.write_text(json.dumps(records[-1]))
         mm._loaded.clear()
         backend.close()
         if os.environ.get("MHRAG_FREE_MODEL_CACHE") == "1":
@@ -271,7 +292,7 @@ def score(records: list[dict], cfg: dict, cache_dir: Path | None = None) -> list
         m.update(citation_stats(a, len(r.get("sources", []))))
         r["metrics"] = m
     _bertscore(answers, cfg)
-    _llm_judge(answers, cfg, cache_dir)
+    cfg["_judge_status"] = _llm_judge(answers, cfg, cache_dir)
     return answers
 
 
@@ -294,15 +315,32 @@ def _bertscore(answers, cfg):
         r["metrics"]["bertscore_model"] = model
 
 
-def _llm_judge(answers, cfg, cache_dir: Path | None = None):
+def judge_sample_ids(cfg: dict, dataset: str, ids) -> set | None:
+    """The questions the LLM judge scores: all, or `judge_sample` per dataset chosen by a fixed hash, so every model
+    and setting is judged on the same questions (API quotas rarely allow judging every answer)."""
+    n = cfg.get("judge_sample")
+    if not n:
+        return None
+    return set(sorted(ids, key=lambda i: hashlib.sha1(f"{dataset}|{i}".encode()).hexdigest())[:n])
+
+
+def _strip_judge(answers) -> None:
+    for x in answers:
+        for k in [k for k in x.get("metrics", {}) if k.startswith("judge_")]:
+            del x["metrics"][k]
+
+
+def _llm_judge(answers, cfg, cache_dir: Path | None = None) -> str:
+    """Returns "complete", "incomplete" (quota ran out: verdicts so far are cached, and the scores are withheld so
+    that no model is compared on a partial sample) or "unavailable"."""
     jm = cfg.get("judge_model")
     if not jm:
-        return
+        return "unavailable"
     catalog = load_catalog()
     ok, why = availability(catalog[jm])
     if not ok:
         log.warning("LLM judge %s unavailable (%s): rubric scores left as TODO(run)", jm, why)
-        return
+        return "unavailable"
     from eval.judges import LLMJudge
     from mhrag.llm.base import BackendError
 
@@ -310,45 +348,53 @@ def _llm_judge(answers, cfg, cache_dir: Path | None = None):
         judge = LLMJudge(ModelManager(catalog, [jm], jm).get(jm))
     except BackendError as e:
         log.error("LLM judge %s could not be loaded (%s): rubric scores left as TODO(run)", jm, e)
-        return
-    # Judge verdicts are cached per (judge, prompt version, answer), so a scoring pass interrupted by a session limit
-    # (or repeated after more models finish) does not call the API again for answers it has already judged.
+        return "unavailable"
+    samples = {d: judge_sample_ids(cfg, d, {r.get("id") for r in answers if r.get("dataset") == d})
+               for d in {r.get("dataset") for r in answers}}
+    todo = [r for r in answers if r.get("answer")
+            and (samples[r.get("dataset")] is None or r.get("id") in samples[r.get("dataset")])]
+    # Verdicts are cached per (judge, prompt version, answer), so an interrupted pass (session limit, daily quota)
+    # continues where it stopped and repeated scoring does not call the API again.
     cache_path = cache_dir / "judge_cache.jsonl" if cache_dir else None
     cache = {c["key"]: c["metrics"] for c in (read_checkpoint(cache_path) if cache_path else [])}
-    for r in answers:
-        if not r.get("answer"):
-            continue
+    before = len(cache)
+    for r in todo:
         ref = r.get("reference")
         ref = ref if isinstance(ref, str) else (ref[0] if ref else None)
         ctx = r.get("context") if r["profile"] != "no_rag" else None
         key = hashlib.sha1(json.dumps([jm, JUDGE_VERSION, r["query"], r["answer"], ref, ctx]).encode()).hexdigest()
-        if key not in cache:
-            jmetrics = {}
-            try:
-                rub = judge.rubric(r["query"], r["answer"], ref)
-                if rub:
-                    jmetrics.update({f"judge_{k}": v for k, v in rub.items()})
-                if ctx:
-                    jmetrics["judge_faithfulness"] = judge.faithfulness(r["answer"], ctx)
-            except BackendError as e:
-                # A client error (bad key, no access to the model, ...) will not fix itself: stop judging and keep
-                # the other metrics. Rate limits and server errors are already retried inside the backend.
-                if any(f"HTTP {c}" in str(e) for c in (401, 403, 404)):
-                    log.error("LLM judge disabled for this run: %s. Rubric scores are left as TODO(run) for every "
-                              "model (a partial judgement would not be comparable); verdicts so far are cached.", e)
-                    for x in answers:
-                        for k in [k for k in x.get("metrics", {}) if k.startswith("judge_")]:
-                            del x["metrics"][k]
-                    return
-                log.warning("LLM judge call failed (%s); retried next run", e)
-                continue
-            cache[key] = jmetrics
-            failed = not rub or (ctx and jmetrics.get("judge_faithfulness") is None)
-            if cache_path and not failed:  # failed calls (rate limits, parse errors) are retried next time
-                with open(cache_path, "a", encoding="utf-8") as f:
-                    f.write(json.dumps({"key": key, "metrics": jmetrics}) + "\n")
+        if key in cache:
+            continue
+        jmetrics = {}
+        try:
+            rub = judge.rubric(r["query"], r["answer"], ref)
+            if rub:
+                jmetrics.update({f"judge_{k}": v for k, v in rub.items()})
+            if ctx:
+                jmetrics["judge_faithfulness"] = judge.faithfulness(r["answer"], ctx)
+        except BackendError as e:
+            if _NO_ACCESS.search(str(e)):
+                log.error("LLM judge disabled: %s. Rubric scores are left as TODO(run).", e)
+                _strip_judge(answers)
+                return "unavailable"
+            log.warning("LLM judge stopped after %d new verdicts (%s); the next run continues from the cache",
+                        len(cache) - before, e)
+            _strip_judge(answers)
+            return "incomplete"
+        # A verdict that could not be parsed is kept as missing (the judge answered; asking again gives the same)
+        cache[key] = jmetrics
+        if cache_path:
+            with open(cache_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"key": key, "metrics": jmetrics}) + "\n")
+    for r in todo:
+        ref = r.get("reference")
+        ref = ref if isinstance(ref, str) else (ref[0] if ref else None)
+        ctx = r.get("context") if r["profile"] != "no_rag" else None
+        key = hashlib.sha1(json.dumps([jm, JUDGE_VERSION, r["query"], r["answer"], ref, ctx]).encode()).hexdigest()
         r["metrics"].update(cache[key])
         r["metrics"]["judge_model"] = jm
+    log.info("LLM judge %s: %d answers judged (%d new calls this run)", jm, len(todo), len(cache) - before)
+    return "complete"
 
 
 # ------------------------------------------------------------------------------ aggregation
@@ -436,8 +482,9 @@ def run_generation_experiment(cfg: dict, settings: Settings, limit: int | None =
     with open(out_dir / "scored.jsonl", "w", encoding="utf-8") as f:
         for r in answers:
             f.write(json.dumps({k: v for k, v in r.items() if k != "context"}, ensure_ascii=False) + "\n")
+    judge_status = cfg.pop("_judge_status", "unavailable")
     res = aggregate(answers, model_info, cfg)
-    res.update(name=cfg["name"], config=cfg)
+    res.update(name=cfg["name"], config=cfg, judge_status=judge_status)
     return res
 
 
@@ -491,6 +538,9 @@ def render_tables(res: dict) -> None:
                             "entailed by a retrieved passage (NLI, DeBERTa-v3); Relev. = question-answer embedding "
                             "cosine; Cites = share of answers with an inline citation; Judge = LLM-as-judge (1--5), "
                             "`--' where not run; Tmpl. = share of questions the risk gate answered with a fixed safety "
-                            "template instead of the model (full pipeline only; these are included in the other columns).",
+                            "template instead of the model (full pipeline only; these are included in the other columns)."
+                            + (f" The judge scored a fixed sample of {res['config']['judge_sample']} questions per "
+                               "dataset, the same for every model and setting."
+                               if (res.get("config") or {}).get("judge_sample") else ""),
                     label=f"tab:gen-{name}-{dataset.replace('_', '-')}", align="llrrrrrrrrr",
                     source=f"results/generation_{name}.json")

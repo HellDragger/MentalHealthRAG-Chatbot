@@ -59,7 +59,7 @@ CONFIGS = {
     "v2_hf_cuda": {"kind": "v2", "model": "qwen2.5-1.5b-instruct", "n": 12, "requires": "cuda"},
     "v2_hf_cuda_4bit": {"kind": "v2", "model": "mistral-7b-instruct-v0.3", "env": {"MHRAG_LOAD_IN_4BIT": "1"},
                         "n": 12, "requires": "cuda"},
-    "v2_api": {"kind": "v2", "model": "llama-3.3-70b-groq", "n": 12, "requires": "GROQ_API_KEY"},
+    "v2_api": {"kind": "v2", "model": "gpt-oss-120b-groq", "n": 12, "requires": "GROQ_API_KEY"},
     "retrieval": {"kind": "retrieval", "n": 12},
 }
 

@@ -81,6 +81,7 @@ class OpenAICompatibleBackend(Backend):
         }
         if params.seed is not None:
             body["seed"] = params.seed
+        body.update(self.spec.raw.get("request_params") or {})  # provider-specific, e.g. reasoning_effort
         url = f"{self.base_url}/chat/completions"
         for attempt in range(self.max_retries + 1):
             emitted = False
