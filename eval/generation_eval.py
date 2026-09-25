@@ -236,9 +236,14 @@ def _ref(row):
 
 
 class _Peak:
-    def __init__(self):
-        import psutil
+    """Peak resident memory across generations; None when psutil (an [eval] extra) is not installed."""
 
+    def __init__(self):
+        try:
+            import psutil
+        except ImportError:
+            self.p, self.gb = None, None
+            return
         self.p = psutil.Process()
         self.gb = self.p.memory_info().rss / 2**30
 
@@ -246,7 +251,8 @@ class _Peak:
         return self
 
     def __exit__(self, *a):
-        self.gb = max(self.gb, self.p.memory_info().rss / 2**30)
+        if self.p is not None:
+            self.gb = max(self.gb, self.p.memory_info().rss / 2**30)
 
 
 def _gpu_mem() -> dict:
