@@ -53,6 +53,16 @@ class OpenAICompatibleBackend(Backend):
         self.timeout = httpx.Timeout(timeout_s, connect=10.0)
         self.max_retries = max_retries
 
+    def _available_models(self) -> str:
+        """On 'model not found', list the models this key can use (GET /models), to tell a wrong model id from a
+        key whose organisation, project or plan does not include the model."""
+        try:
+            r = httpx.get(f"{self.base_url}/models", headers=self._headers(), timeout=10.0)
+            ids = sorted(m["id"] for m in r.json().get("data", []))
+        except Exception:
+            return ""
+        return f". This key can use: {', '.join(ids)}" if ids else ""
+
     def _headers(self) -> dict:
         h = {"Content-Type": "application/json"}
         if self.api_key:
@@ -87,7 +97,8 @@ class OpenAICompatibleBackend(Backend):
                         continue
                     if r.status_code >= 400:
                         r.read()
-                        raise BackendError(f"{self.spec.key}: HTTP {r.status_code}{_api_error(r)}")
+                        hint = self._available_models() if r.status_code == 404 else ""
+                        raise BackendError(f"{self.spec.key}: HTTP {r.status_code}{_api_error(r)}{hint}")
                     for line in r.iter_lines():
                         if not line.startswith("data:"):
                             continue

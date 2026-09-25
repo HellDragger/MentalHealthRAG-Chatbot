@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -60,6 +61,8 @@ def main(argv=None) -> int:
             ckpt.unlink(missing_ok=True)
         retrieval_tables(json.loads(out.read_text()))
     elif cfg["kind"] == "generation":
+        if os.environ.get("MHRAG_JUDGE_MODEL"):  # e.g. a judge the API key has access to
+            cfg["judge_model"] = os.environ["MHRAG_JUDGE_MODEL"]
         from eval.generation_eval import run_generation_experiment
         from eval.report import generation_tables
 
