@@ -86,7 +86,7 @@ def generate(cfg: dict, settings: Settings, out_dir: Path, limit: int | None) ->
                 row.setdefault("query", row.get("text"))
             for profile in cfg["profiles"]:
                 path = out_dir / f"{model}__{profile}__{dataset}.jsonl"
-                done = {r["id"]: r for r in read_checkpoint(path)}
+                done = {i: r for i, r in _answers(path).items() if not r.get("error")}  # failed ones are retried
                 s2, emb, chunk, variant = _index_for(settings, cfg, dataset, profile)
                 key = (emb, chunk, variant)
                 if profile != "no_rag" and key not in retrievers:
@@ -134,10 +134,20 @@ def _complete(cfg: dict, model: str, out_dir: Path, limit: int | None) -> bool:
     for dataset in cfg["datasets"]:
         want = {r["id"] for r in _rows(cfg, dataset, limit)}
         for profile in cfg["profiles"]:
-            have = {r["id"] for r in read_checkpoint(out_dir / f"{model}__{profile}__{dataset}.jsonl")}
+            answers = _answers(out_dir / f"{model}__{profile}__{dataset}.jsonl")
+            have = {i for i, r in answers.items() if not r.get("error")}
             if not want <= have:
                 return False
     return True
+
+
+def _answers(path: Path) -> dict:
+    """Latest answer per question id; a successful retry replaces an earlier failed attempt, never the reverse."""
+    out: dict = {}
+    for r in read_checkpoint(path):
+        if r["id"] not in out or out[r["id"]].get("error"):
+            out[r["id"]] = r
+    return out
 
 
 def read_checkpoint(path: Path) -> list[dict]:
@@ -184,7 +194,7 @@ def _load_checkpoint(cfg: dict, model: str, out_dir: Path) -> list[dict]:
         rows = load_jsonl(f"{dataset}.jsonl")
         for profile in cfg["profiles"]:
             path = out_dir / f"{model}__{profile}__{dataset}.jsonl"
-            for r in read_checkpoint(path):
+            for r in _answers(path).values():
                 row = row_by_id(rows, r["id"])
                 if row is not None:
                     recs.append({**r, "reference": _ref(row)})
@@ -294,9 +304,13 @@ def _llm_judge(answers, cfg, cache_dir: Path | None = None):
         log.warning("LLM judge %s unavailable (%s): rubric scores left as TODO(run)", jm, why)
         return
     from eval.judges import LLMJudge
+    from mhrag.llm.base import BackendError
 
-    backend = ModelManager(catalog, [jm], jm).get(jm)
-    judge = LLMJudge(backend)
+    try:
+        judge = LLMJudge(ModelManager(catalog, [jm], jm).get(jm))
+    except BackendError as e:
+        log.error("LLM judge %s could not be loaded (%s): rubric scores left as TODO(run)", jm, e)
+        return
     # Judge verdicts are cached per (judge, prompt version, answer), so a scoring pass interrupted by a session limit
     # (or repeated after more models finish) does not call the API again for answers it has already judged.
     cache_path = cache_dir / "judge_cache.jsonl" if cache_dir else None
@@ -310,11 +324,24 @@ def _llm_judge(answers, cfg, cache_dir: Path | None = None):
         key = hashlib.sha1(json.dumps([jm, JUDGE_VERSION, r["query"], r["answer"], ref, ctx]).encode()).hexdigest()
         if key not in cache:
             jmetrics = {}
-            rub = judge.rubric(r["query"], r["answer"], ref)
-            if rub:
-                jmetrics.update({f"judge_{k}": v for k, v in rub.items()})
-            if ctx:
-                jmetrics["judge_faithfulness"] = judge.faithfulness(r["answer"], ctx)
+            try:
+                rub = judge.rubric(r["query"], r["answer"], ref)
+                if rub:
+                    jmetrics.update({f"judge_{k}": v for k, v in rub.items()})
+                if ctx:
+                    jmetrics["judge_faithfulness"] = judge.faithfulness(r["answer"], ctx)
+            except BackendError as e:
+                # A client error (bad key, no access to the model, ...) will not fix itself: stop judging and keep
+                # the other metrics. Rate limits and server errors are already retried inside the backend.
+                if any(f"HTTP {c}" in str(e) for c in (401, 403, 404)):
+                    log.error("LLM judge disabled for this run: %s. Rubric scores are left as TODO(run) for every "
+                              "model (a partial judgement would not be comparable); verdicts so far are cached.", e)
+                    for x in answers:
+                        for k in [k for k in x.get("metrics", {}) if k.startswith("judge_")]:
+                            del x["metrics"][k]
+                    return
+                log.warning("LLM judge call failed (%s); retried next run", e)
+                continue
             cache[key] = jmetrics
             failed = not rub or (ctx and jmetrics.get("judge_faithfulness") is None)
             if cache_path and not failed:  # failed calls (rate limits, parse errors) are retried next time

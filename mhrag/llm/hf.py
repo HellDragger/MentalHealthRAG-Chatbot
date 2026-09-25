@@ -51,7 +51,12 @@ class HFBackend(Backend):
             dtype = os.environ.get("MHRAG_DTYPE", "auto")
         if dtype == "auto":
             if self.device == "cuda":
-                torch_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+                # native bf16 only (Ampere+); on a T4 bf16 is emulated and much slower than fp16
+                try:
+                    bf16 = torch.cuda.is_bf16_supported(including_emulation=False)
+                except TypeError:  # torch < 2.4
+                    bf16 = torch.cuda.get_device_capability()[0] >= 8
+                torch_dtype = torch.bfloat16 if bf16 else torch.float16
             elif self.device == "mps":
                 torch_dtype = torch.float16
             else:
@@ -144,6 +149,11 @@ class HFBackend(Backend):
             enc = {k: v[:, sl] for k, v in enc.items()}
             log.warning("%s: prompt truncated to %d tokens (context %d)", self.spec.key, limit, ctx)
         inputs = {k: v.to(self.model.device) for k, v in enc.items()}
+        if (getattr(self.model.generation_config, "num_beams", 1) or 1) > 1:
+            # Beam search (e.g. BART-large-CNN's default num_beams=4) cannot be streamed by transformers; keep the
+            # model's own decoding settings and return the answer in one piece.
+            yield from self._generate_whole(inputs, max_new, params)
+            return
         streamer = TextIteratorStreamer(self.tokenizer, skip_prompt=not self.seq2seq, skip_special_tokens=True,
                                         timeout=300)
         gen_kwargs = dict(
@@ -186,9 +196,29 @@ class HFBackend(Backend):
             yield piece
         th.join()
         if err:
-            raise BackendError(f"generation failed: {type(err[0]).__name__}")
+            raise BackendError(f"generation failed: {type(err[0]).__name__}: {str(err[0])[:200]}") from err[0]
         self.last_usage = {"prompt_tokens": int(inputs["input_ids"].shape[1]), "completion_tokens": n}
         self.last_finish_reason = "length" if n >= max_new - 1 else "stop"
+
+    def _generate_whole(self, inputs: dict, max_new: int, params: GenerationParams):
+        import torch
+
+        try:
+            kw = dict(max_new_tokens=max_new, repetition_penalty=params.repetition_penalty, do_sample=params.do_sample,
+                      pad_token_id=self.tokenizer.pad_token_id or self.tokenizer.eos_token_id)
+            if params.do_sample:
+                kw.update(temperature=params.temperature, top_p=params.top_p)
+            if params.seed is not None:
+                torch.manual_seed(params.seed)
+            with torch.inference_mode():
+                out = self.model.generate(**inputs, **kw)
+        except Exception as e:
+            raise BackendError(f"generation failed: {type(e).__name__}: {str(e)[:200]}") from e
+        new = out[0] if self.seq2seq else out[0, inputs["input_ids"].shape[1]:]
+        n = int((new != (self.tokenizer.pad_token_id or -1)).sum())
+        self.last_usage = {"prompt_tokens": int(inputs["input_ids"].shape[1]), "completion_tokens": n}
+        self.last_finish_reason = "length" if n >= max_new - 1 else "stop"
+        yield self.tokenizer.decode(new, skip_special_tokens=True).strip()
 
     def close(self):
         import gc

@@ -26,6 +26,16 @@ def _env_or(raw: dict, key: str) -> str | None:
     return raw.get(key)
 
 
+def _api_error(r) -> str:
+    """The provider's error message (e.g. "model not found"), never the request content."""
+    try:
+        err = r.json().get("error")
+        msg = err.get("message") if isinstance(err, dict) else err
+        return f" ({str(msg)[:200]})" if msg else ""
+    except Exception:
+        return ""
+
+
 class OpenAICompatibleBackend(Backend):
     name = "openai_compatible"
 
@@ -77,7 +87,7 @@ class OpenAICompatibleBackend(Backend):
                         continue
                     if r.status_code >= 400:
                         r.read()
-                        raise BackendError(f"{self.spec.key}: HTTP {r.status_code}")
+                        raise BackendError(f"{self.spec.key}: HTTP {r.status_code}{_api_error(r)}")
                     for line in r.iter_lines():
                         if not line.startswith("data:"):
                             continue

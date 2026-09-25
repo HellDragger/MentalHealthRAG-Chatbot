@@ -14,6 +14,7 @@ from eval.datasets import is_relevant, load_jsonl, n_relevant
 from eval.metrics import bootstrap_ci, holm, mrr_at_k, ndcg_at_k, paired_bootstrap_p
 from mhrag.config import Settings
 from mhrag.index.builder import build_index
+from mhrag.index.embedders import release_models
 from mhrag.retrieval.factory import build_retriever
 
 log = logging.getLogger(__name__)
@@ -115,6 +116,9 @@ def run_retrieval_experiment(cfg: dict, settings: Settings, checkpoint: Path | N
                     log.info("%-14s %-10s c%-4d %-14s R@1 %.3f R@10 %.3f MRR %.3f nDCG %.3f", sysdef["name"],
                              run["embedder"] or "-", chunk, dname, s["R@1"]["mean"], s["R@10"]["mean"],
                              s["MRR@10"]["mean"], s["nDCG@10"]["mean"])
+                r = None  # drop this retriever's cross-encoder before the next system loads its own
+            if built:
+                release_models()  # free this embedder's GPU memory before the next one
     return {"name": cfg["name"], "config": cfg, "runs": runs, "significance": significance(runs, cfg)}
 
 

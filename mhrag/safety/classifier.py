@@ -27,9 +27,24 @@ class TfidfLRClassifier(RiskClassifier):
     name = "tfidf_lr"
 
     def __init__(self, directory: Path):
-        import joblib
+        import warnings
 
-        self.pipeline = joblib.load(directory / "tfidf_lr.joblib")
+        import joblib
+        import sklearn
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.pipeline = joblib.load(directory / "tfidf_lr.joblib")
+        saved = next((getattr(w.message, "original_sklearn_version", None) for w in caught
+                      if type(w.message).__name__ == "InconsistentVersionWarning"), None)
+        if saved and saved != sklearn.__version__:
+            # A pickled model is only reliable with the scikit-learn version that saved it (e.g. 1.9 -> 1.6 fails at
+            # predict time with "'LogisticRegression' object has no attribute 'multi_class'").
+            raise RuntimeError(
+                f"{directory / 'tfidf_lr.joblib'} was saved with scikit-learn {saved}, but {sklearn.__version__} is "
+                f"installed. Install scikit-learn=={saved} (pip install -e . does this) or retrain with "
+                "python -m scripts.train_risk_classifier --skip-transformer."
+            )
         meta = json.loads((directory / "tfidf_lr.meta.json").read_text())
         self.threshold = float(meta["threshold"])
         self.threshold_high_precision = float(meta.get("threshold_high_precision", max(self.threshold, 0.9)))

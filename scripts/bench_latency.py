@@ -54,7 +54,9 @@ CONFIGS = {
                           "requires": "darwin"},
     "v2_hf_mps": {"kind": "v2", "model": "qwen2.5-1.5b-instruct", "env": {"MHRAG_DEVICE": "mps"}, "n": 12,
                   "requires": "mps"},
-    "v2_hf_cuda": {"kind": "v2", "model": "mistral-7b-instruct-v0.3", "n": 12, "requires": "cuda"},
+    # 16-bit Mistral-7B (~15 GB) does not fit a 16 GB T4, so the 16-bit CUDA row uses the same 1.5B model as the
+    # laptop rows; the NF4 row shows a 7B model on the same GPU.
+    "v2_hf_cuda": {"kind": "v2", "model": "qwen2.5-1.5b-instruct", "n": 12, "requires": "cuda"},
     "v2_hf_cuda_4bit": {"kind": "v2", "model": "mistral-7b-instruct-v0.3", "env": {"MHRAG_LOAD_IN_4BIT": "1"},
                         "n": 12, "requires": "cuda"},
     "v2_api": {"kind": "v2", "model": "llama-3.3-70b-groq", "n": 12, "requires": "GROQ_API_KEY"},

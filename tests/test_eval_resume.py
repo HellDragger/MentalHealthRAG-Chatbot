@@ -78,3 +78,56 @@ def test_generation_skips_models_already_complete(tmp_path, monkeypatch):
     recs = ge.generate(cfg, None, tmp_path, limit=None)
     assert sum("answer" in r for r in recs) == 4
     assert {"model": "m", "status": "ok", "load_seconds": 3.0} in recs
+
+
+def test_failed_answers_are_retried(tmp_path, monkeypatch):
+    import eval.generation_eval as ge
+
+    rows = {"faq_gen": [{"id": 1}, {"id": 2}]}
+    monkeypatch.setattr(ge, "load_jsonl", lambda name: [dict(r) for r in rows[name.removesuffix(".jsonl")]])
+    cfg = {"datasets": ["faq_gen"], "profiles": ["full"]}
+    p = tmp_path / "m__full__faq_gen.jsonl"
+    p.write_text(json.dumps({"id": 1, "answer": "ok"}) + "\n" + json.dumps({"id": 2, "answer": "", "error": "E"}) + "\n")
+    assert not ge._complete(cfg, "m", tmp_path, None)  # id 2 failed -> the model is not finished
+    with open(p, "a") as f:  # the retry succeeds; a later failure must not replace a success
+        f.write(json.dumps({"id": 2, "answer": "fixed"}) + "\n" + json.dumps({"id": 1, "answer": "", "error": "E"}) + "\n")
+    assert {i: r["answer"] for i, r in ge._answers(p).items()} == {1: "ok", 2: "fixed"}
+    assert ge._complete(cfg, "m", tmp_path, None)
+
+
+def test_judge_client_error_disables_judge_without_crashing(tmp_path, monkeypatch):
+    import eval.generation_eval as ge
+    import eval.judges as judges
+    from mhrag.llm.base import BackendError
+
+    class Mgr:
+        def __init__(self, *a, **k):
+            pass
+
+        def get(self, key):
+            return object()
+
+    calls = []
+
+    class Judge:
+        def __init__(self, backend):
+            pass
+
+        def rubric(self, q, a, ref):
+            calls.append(q)
+            if len(calls) > 1:
+                raise BackendError("llama-3.3-70b-groq: HTTP 404 (model not found)")
+            return {"empathy": 4}
+
+        def faithfulness(self, a, ctx):
+            return 1.0
+
+    monkeypatch.setattr(ge, "load_catalog", lambda: {"j": None})
+    monkeypatch.setattr(ge, "availability", lambda spec: (True, "ok"))
+    monkeypatch.setattr(ge, "ModelManager", Mgr)
+    monkeypatch.setattr(judges, "LLMJudge", Judge)
+    answers = [{"query": f"q{i}", "answer": "a", "profile": "no_rag", "metrics": {"words": 1}} for i in range(3)]
+    ge._llm_judge(answers, {"judge_model": "j"}, tmp_path)
+    assert len(calls) == 2  # stopped at the first client error
+    assert all(not any(k.startswith("judge_") for k in a["metrics"]) for a in answers)  # no partial judging
+    assert (tmp_path / "judge_cache.jsonl").read_text().count("\n") == 1  # the verdict obtained is kept
