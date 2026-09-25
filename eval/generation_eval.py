@@ -355,13 +355,14 @@ def _llm_judge(answers, cfg, cache_dir: Path | None = None) -> str:
             and (samples[r.get("dataset")] is None or r.get("id") in samples[r.get("dataset")])]
     # Verdicts are cached per (judge, prompt version, answer), so an interrupted pass (session limit, daily quota)
     # continues where it stopped and repeated scoring does not call the API again.
+    use_faith = cfg.get("judge_faithfulness", True)  # NLI already measures faithfulness; this saves ~half the tokens
     cache_path = cache_dir / "judge_cache.jsonl" if cache_dir else None
     cache = {c["key"]: c["metrics"] for c in (read_checkpoint(cache_path) if cache_path else [])}
     before = len(cache)
     for r in todo:
         ref = r.get("reference")
         ref = ref if isinstance(ref, str) else (ref[0] if ref else None)
-        ctx = r.get("context") if r["profile"] != "no_rag" else None
+        ctx = r.get("context") if r["profile"] != "no_rag" and use_faith else None
         key = hashlib.sha1(json.dumps([jm, JUDGE_VERSION, r["query"], r["answer"], ref, ctx]).encode()).hexdigest()
         if key in cache:
             continue
@@ -389,7 +390,7 @@ def _llm_judge(answers, cfg, cache_dir: Path | None = None) -> str:
     for r in todo:
         ref = r.get("reference")
         ref = ref if isinstance(ref, str) else (ref[0] if ref else None)
-        ctx = r.get("context") if r["profile"] != "no_rag" else None
+        ctx = r.get("context") if r["profile"] != "no_rag" and use_faith else None
         key = hashlib.sha1(json.dumps([jm, JUDGE_VERSION, r["query"], r["answer"], ref, ctx]).encode()).hexdigest()
         r["metrics"].update(cache[key])
         r["metrics"]["judge_model"] = jm

@@ -157,15 +157,17 @@ BART-large-CNN (a summariser) copies its input.
 questions to the crisis protocol and 12 to the elevated tier, all triggered by the classifier (e.g. "Where can I go to
 find therapy"). It fails safe, but replaces useful answers.
 
-**Still to run on a GPU** (Kaggle notebook): CUDA latency, the full multi-LLM benchmark and the LLM judge. Their tables
-in the paper show `TODO(run)` with the command until then.
+**Still to run** (Kaggle notebook): CUDA latency, the 19-model benchmark (open models on a T4; compared with the
+automatic metrics) and the LLM judge. Groq's free plan allows ~200k tokens/day for the judge (gpt-oss-120b), so it
+scores a fixed sample of 20 questions per dataset in the local experiment and continues across sessions until done.
+Their tables in the paper show `TODO(run)` with the command until then.
 The Kaggle notebook is resumable across 12-hour sessions: attach its previous output as an input and run it
 again. Finished steps are skipped, and interrupted ones continue from their last saved answer.
 To bring results back, download `mhrag_results.zip` from the notebook's Output tab and run
 `python -m scripts.import_results ~/Downloads/mhrag_results.zip` (add `--dry-run` to preview). It imports only the
 experiments that run finished, never replaces a local measurement with a pending one, and regenerates the paper tables
 and numbers.
-GPU-scale results (7–12B models, LLM judge) are marked `TODO(run)` until you run the Kaggle or Colab notebook.
+GPU-scale results (7–12B models) and the LLM judge are marked `TODO(run)` until you run the Kaggle or Colab notebook.
 
 ## Reproducing every table
 

@@ -24,15 +24,15 @@ models:
   - gpt2                         # v1 baselines
   - gpt-j-6b
   - bart-large-cnn
-  - llama-3.3-70b-groq           # API upper reference (GROQ_API_KEY)
-  - gpt-oss-120b-groq
 profiles: [no_rag, naive, full]
 datasets: [faq_gen, oos_questions, counsel_gen]
 limits: {counsel_gen: 100}
 naive: {embedder: minilm, chunk_tokens: 48}
 temperature: 0.0
-judge_model: gpt-oss-120b-groq
-judge_sample: null                 # judge every answer; or N = a fixed sample of N questions per dataset
+# No API models and no LLM judge here: on Groq's free plan they would take months of daily quota. The 19 open models
+# are compared with NLI faithfulness, relevance, ROUGE-L, BERTScore, citations and abstention (plus the human
+# evaluation); the LLM judge is run on a sample in generation_local.yaml.
+judge_model: null
 nli_model: cross-encoder/nli-deberta-v3-base
 bertscore_model: roberta-large
 timeout_s: 600

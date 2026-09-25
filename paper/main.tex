@@ -233,9 +233,11 @@ before gate v2 was run on it.
 about 45-token chunks, top-2 chunks joined by a space, no system prompt) and the full pipeline. Decoding is greedy with at
 most 400 new tokens. Metrics: NLI faithfulness (share of answer sentences entailed by at least one retrieved passage),
 question--answer embedding similarity, ROUGE-L and BERTScore against references, Flesch reading ease, citation rate,
-abstention on OOS questions, latency (time to first token, tokens per second, end-to-end), and, when an API key is
-available, a fixed-prompt LLM-judge rubric (\texttt{rubric-v1}). We report the Spearman correlation between answer length
-and judge score as a verbosity-bias check. Settings are compared with paired bootstrap and Wilcoxon tests, Holm-corrected.
+abstention on OOS questions and latency (time to first token, tokens per second, end-to-end). A fixed-prompt LLM-judge
+rubric (\texttt{rubric-v1}: empathy, safety, helpfulness, correctness; judge \JudgeModel{}) scores a fixed random sample
+of \JudgeSample{} questions per dataset in the local experiment, the same questions for every model and setting. The
+free API quota did not allow judging the multi-model benchmark, which is compared with the automatic metrics above. We
+report the Spearman correlation between answer length and judge score as a verbosity-bias check. Settings are compared with paired bootstrap and Wilcoxon tests, Holm-corrected.
 
 \paragraph{Hardware} Local results were computed on \Hardware{}. GPU results use a free Colab T4 with 4-bit NF4 loading
 \citep{dettmers2023qlora}.

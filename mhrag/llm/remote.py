@@ -26,6 +26,13 @@ def _env_or(raw: dict, key: str) -> str | None:
     return raw.get(key)
 
 
+def _retry_after(r) -> float | None:
+    try:
+        return float(r.headers["retry-after"])
+    except (KeyError, ValueError):
+        return None
+
+
 def _api_error(r) -> str:
     """The provider's error message (e.g. "model not found"), never the request content."""
     try:
@@ -83,7 +90,9 @@ class OpenAICompatibleBackend(Backend):
             body["seed"] = params.seed
         body.update(self.spec.raw.get("request_params") or {})  # provider-specific, e.g. reasoning_effort
         url = f"{self.base_url}/chat/completions"
-        for attempt in range(self.max_retries + 1):
+        attempt, rate_waits = -1, 0
+        while True:
+            attempt += 1
             emitted = False
             try:
                 with httpx.Client(timeout=self.timeout) as client, client.stream(
@@ -92,6 +101,13 @@ class OpenAICompatibleBackend(Backend):
                     if r.status_code == 400 and "stream_options" in body:
                         body.pop("stream_options")  # some servers reject it; retry without
                         raise httpx.HTTPStatusError("retry without stream_options", request=r.request, response=r)
+                    wait = _retry_after(r)
+                    if r.status_code == 429 and wait is not None and wait <= 120 and rate_waits < 8:
+                        # a per-minute limit: wait it out (a daily quota asks for a much longer wait and fails below)
+                        rate_waits += 1
+                        attempt -= 1
+                        time.sleep(wait + 0.5)
+                        continue
                     if r.status_code in (429, 500, 502, 503, 504) and attempt < self.max_retries:
                         wait = float(r.headers.get("retry-after", 2 ** attempt))
                         time.sleep(min(wait, 10))

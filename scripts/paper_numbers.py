@@ -48,6 +48,13 @@ EMB = {"minilm": "MiniLM-L6", "bge-small": "BGE-small", "bge-base": "BGE-base", 
 DS = {"heading_qa": "HeadingQA", "synth_qa": "SynthQA", "paraphrase_qa": "ParaphraseQA"}
 
 
+def get_catalog_label(key: str) -> str:
+    from mhrag.llm.registry import load_catalog
+
+    spec = load_catalog().get(key)
+    return spec.raw.get("api_model", key) if spec else key
+
+
 def sysname(r) -> str:
     return SYS.get(r["system"], r["system"]) + (f" ({EMB.get(r['embedder'], r['embedder'])} embeddings)" if r["embedder"] else "")
 
@@ -223,10 +230,22 @@ def main():
                 if oos and oos.get("abstained"):
                     s += f"; it declined or flagged missing information on {f3(oos['abstained']['mean'])} of out-of-scope questions"
                 parts.append(s + ".")
-        m.text("GenerationSummary", " ".join(parts) + " Full per-model results are in the tables below; LLM-judge "
-               "columns remain \\todorun{set GROQ\\_API\\_KEY and rerun} where no judge was available.", c_gl)
+        if gl.get("judge_status") == "complete":
+            tail = " Full per-model results are in the tables below."
+        else:
+            tail = (" Full per-model results are in the tables below; the LLM-judge column remains "
+                    "\\todorun{" + c_gl.replace("_", "\\_") + " (continues until the judge sample is complete)}.")
+        m.text("GenerationSummary", " ".join(parts) + tail, c_gl)
     else:
         m.text("GenerationSummary", None, c_gl)
+
+    # ---------------------------------------------------------------- judge design (from the experiment config)
+    import yaml
+
+    jcfg = yaml.safe_load((PROJECT_ROOT / "configs" / "experiments" / "generation_local.yaml").read_text())
+    jm = jcfg.get("judge_model")
+    m.set("JudgeModel", (get_catalog_label(jm) if jm else None), "set judge_model in generation_local.yaml")
+    m.set("JudgeSample", jcfg.get("judge_sample") or "all", "set judge_sample in generation_local.yaml")
 
     # ---------------------------------------------------------------- gate on ordinary questions
     ge = load("gate_escalation.json")
