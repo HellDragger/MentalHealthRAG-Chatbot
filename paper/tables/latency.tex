@@ -4,6 +4,7 @@
 \small
 \caption{End-to-end latency for 12 fixed questions (v1: 5). TTFT = time to first streamed token (v1 does not stream, so TTFT equals end-to-end time). v2 rows include the safety gate, hybrid retrieval and reranking. Peak RSS excludes GPU/unified memory held by Metal.}
 \label{tab:latency}
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{llrrrrr}
 \toprule
 Configuration & Model & TTFT p50 (s) & E2E p50 (s) & E2E p95 (s) & tok/s & Peak RSS (GB) \\
@@ -17,4 +18,5 @@ v2 transformers NF4, CUDA & -- & \multicolumn{5}{l}{\todorun{python -m scripts.b
 v2 Groq API (Llama-3.3-70B) & -- & \multicolumn{5}{l}{\todorun{python -m scripts.bench\_latency --config v2\_api}} \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{table}

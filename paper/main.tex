@@ -13,9 +13,20 @@
 \usepackage{url}
 \usepackage{enumitem}
 
-\newcommand{\todorun}[1]{\colorbox{red!15}{\scriptsize\texttt{TODO(run): #1}}}
-\newcommand{\todohuman}[1]{\colorbox{orange!20}{\scriptsize\texttt{TODO(human): #1}}}
-\newcommand{\tableorTODO}[2]{\IfFileExists{tables/#1.tex}{\input{tables/#1.tex}}{\begin{table}[t]\centering\todorun{#2}\caption{(pending) #1}\end{table}}}
+\usepackage{adjustbox}
+% underscore: lets `_` appear literally in text (commands, file and table names inside TODO markers and captions)
+\usepackage[strings]{underscore}
+
+% Inline markers are plain red/orange text so long commands can wrap; missing tables get a full-width box.
+\newcommand{\todorun}[1]{{\color{red!70!black}\scriptsize\ttfamily [TODO(run): #1]}}
+\newcommand{\todohuman}[1]{{\color{orange!80!black}\scriptsize\ttfamily [TODO(human): #1]}}
+\newcommand{\tableorTODO}[2]{\IfFileExists{tables/#1.tex}{\input{tables/#1.tex}}{\begin{table}[t]\centering
+  \colorbox{red!15}{\parbox{0.95\linewidth}{\raggedright\scriptsize\ttfamily TODO(run): #2}}\caption{(pending) #1}\end{table}}}
+% Refer to a generated table, or say it is pending when its results have not been produced yet
+\newcommand{\tableref}[2]{\IfFileExists{tables/#1.tex}{Table~\ref{#2}}{a table pending the Kaggle run}}
+% Long identifiers set with \path may break after underscores
+\makeatletter\g@addto@macro\UrlBreaks{\do\_}\makeatother
+\setlength{\emergencystretch}{2em}
 \input{numbers.tex}
 
 \journal{TODO: target journal (see JOURNALS.md)}
@@ -131,7 +142,7 @@ indexing and query time; social-media posts and classifier labels indexed as kno
 prompt echoed back; and no safety handling.
 
 \paragraph{Pipeline} Figure~\ref{fig:arch} summarises the v2 pipeline. A user message first passes through the
-risk-triage gate (Section~\ref{sec:safety}). If the gate raises no blocking flag, a history-aware query (a heuristic
+risk-triage gate (Section~\ref{sec:setup}). If the gate raises no blocking flag, a history-aware query (a heuristic
 rewrite for follow-ups) is sent to a hybrid retriever. BM25 and dense top-30 lists are fused by RRF ($k=60$) and the
 top candidates are reranked by a cross-encoder. The top-5 passages are packed into a token budget as numbered sources,
 and the model's own chat template is applied (with fixes for models without a system role and for Qwen3's thinking
@@ -188,7 +199,7 @@ index.
 \begin{table}[t]\centering\small
 \caption{Data sources and their use. Row counts are from \texttt{results/ingest\_stats.json} and
 \texttt{results/risk\_classifier.json}.}\label{tab:data}
-\begin{tabular}{lll}\toprule
+\begin{adjustbox}{max width=\linewidth}\begin{tabular}{lll}\toprule
 Source & Size & Use \\\midrule
 Mind web pages (printed) & \NMindWeb{} PDFs & knowledge base \\
 Mind booklets & \NMindBooklet{} PDFs & knowledge base \\
@@ -198,11 +209,11 @@ Chatbot intents (KB.json) & \NKBFactIntents{} factual intents & knowledge base; 
 CounselChat pairs & \NCounselRows{} pairs & Counsel-Gen (held-out); optional ablation \\
 Suicide-risk posts & \NClfRows{} posts & classifier train/val/test \\
 Reddit depression, Dreaddit, Twitter & see Table~\ref{tab:risk-transfer} & cross-dataset tests only \\\bottomrule
-\end{tabular}
+\end{tabular}\end{adjustbox}
 \end{table}
 
 % ==================================================================================================================
-\section{Experimental setup}
+\section{Experimental setup}\label{sec:setup}
 \paragraph{Retrieval} We compare BM25, five dense embedders (MiniLM-L6 as in v1, BGE-small/base, E5-base with
 \texttt{query:}/\texttt{passage:} prefixes, GTE-base), hybrid RRF, and hybrid with a MiniLM or BGE cross-encoder, at
 128/256/512-token chunks. We report success@$k$ (at least one relevant chunk in the top $k$), MRR@10 and nDCG@10, with
@@ -274,10 +285,10 @@ was \GateVTwoHeldAnySafety{}. The lexicon alone generalised worst (held-out reca
 % ==================================================================================================================
 \section{Ablations}
 \begin{itemize}[leftmargin=*]
-\item \emph{Chunk size} (128/256/512): Table~\ref{tab:retrieval-chunks-heading-qa}.
+\item \emph{Chunk size} (128/256/512): \tableref{retrieval_chunks_heading_qa}{tab:retrieval-chunks-heading-qa}.
 \item \emph{Reranker} (none / MiniLM / BGE): Tables~\ref{tab:retrieval-main-heading-qa}--\ref{tab:retrieval-main-paraphrase-qa}. Cross-encoder reranking gave the largest gains on HeadingQA and ParaphraseQA. On SynthQA, only the BGE reranker improved on unreranked hybrid retrieval. After reranking, differences between embedders fell within the confidence intervals.
 \item \emph{Gate components} (lexicon only / classifier only / combined): Table~\ref{tab:safety-gate-v2-heldout}.
-\item \emph{Corpus composition}: Mind-only versus all sources (\texttt{MHRAG\_INGEST\_\_INCLUDE\_WEB\_ARTICLES=false}) and adding the
+\item \emph{Corpus composition}: Mind-only versus all sources (\path{MHRAG_INGEST__INCLUDE_WEB_ARTICLES=false}) and adding the
       counselling corpus (\texttt{include\_counselling=true}). \todorun{python -m scripts.build\_index --variant mindonly and rerun retrieval\_main}
 \end{itemize}
 

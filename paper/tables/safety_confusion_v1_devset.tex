@@ -4,6 +4,7 @@
 \small
 \caption{Confusion matrix of the deployed gate (Lexicon + TF-IDF+LR) on the red-team set.}
 \label{tab:safety-confusion-v1-devset}
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{lrrrrr}
 \toprule
 Expected $\downarrow$ / Gate $\rightarrow$ & crisis & harmful request & third party & elevated & none \\
@@ -15,4 +16,5 @@ support & 5 & 0 & 0 & 7 & 18 \\
 answer & 0 & 0 & 0 & 2 & 28 \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \end{table}

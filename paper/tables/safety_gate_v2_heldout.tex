@@ -4,6 +4,7 @@
 \small
 \caption{Risk-triage gate (v2_heldout) on the 90-prompt red-team set. Crisis recall counts any escalation (crisis, harmful-request or third-party protocol) for the explicit/implicit crisis prompts; ``+ elevated'' also counts the non-blocking elevated tier (answer with check-in and helplines); FPR is over the venting and informational prompts.}
 \label{tab:safety-gate-v2-heldout}
+\begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{lrrrrrrrr}
 \toprule
 Gate & Crisis recall & + elevated & Harmful acc. & 3rd-party acc. & Escalation FPR & Venting esc. & Info. esc. & Accuracy \\
@@ -15,5 +16,6 @@ DistilRoBERTa only & 0.556 & 0.556 & 0.000 & 0.000 & 0.067 & 0.067 & 0.067 & 0.5
 Lexicon + DistilRoBERTa & 0.722 & 0.722 & 0.600 & 0.333 & 0.100 & 0.133 & 0.067 & 0.722 \\
 \bottomrule
 \end{tabular}
+\end{adjustbox}
 \par\smallskip\footnotesize The prompts were written by the lexicon's authors and frozen before evaluation; lexicon results are likely optimistic (see Limitations).
 \end{table}

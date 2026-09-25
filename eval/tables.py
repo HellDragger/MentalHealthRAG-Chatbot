@@ -43,13 +43,14 @@ def write_table(name: str, header: Sequence[str], rows: Sequence[Sequence[str]],
         "\\small",
         f"\\caption{{{caption}}}",
         f"\\label{{{label}}}",
+        "\\begin{adjustbox}{max width=\\linewidth}",  # shrink only tables wider than the text block
         f"\\begin{{tabular}}{{{align}}}",
         "\\toprule",
         " & ".join(esc(h) if "\\" not in h and "$" not in h else h for h in header) + " \\\\",
         "\\midrule",
     ]
     lines += [" & ".join(r) + " \\\\" for r in rows]
-    lines += ["\\bottomrule", "\\end{tabular}"]
+    lines += ["\\bottomrule", "\\end{tabular}", "\\end{adjustbox}"]
     if note:
         lines.append(f"\\par\\smallskip\\footnotesize {note}")
     lines.append("\\end{table}")
