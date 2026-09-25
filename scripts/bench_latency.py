@@ -284,9 +284,11 @@ def main(argv=None):
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--n", type=int)
     ap.add_argument("--model")
-    ap.add_argument("--out", default="results/latency.json")
+    ap.add_argument("--out", help="default: <results dir>/latency.json (follows MHRAG_PATHS__RESULTS)")
     args = ap.parse_args(argv)
-    out = Path(args.out)
+    from mhrag.config import get_settings
+
+    out = Path(args.out) if args.out else get_settings().results_dir / "latency.json"
 
     if args.all:
         for name, cfg in CONFIGS.items():

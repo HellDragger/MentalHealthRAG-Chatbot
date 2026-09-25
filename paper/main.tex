@@ -251,7 +251,7 @@ Of \NPDFs{} PDFs, \NPDFsParsed{} had a text layer (one easy-read booklet is imag
 \tableorTODO{retrieval_main_heading_qa}{python -m scripts.run_eval --config configs/experiments/retrieval_main.yaml}
 \tableorTODO{retrieval_main_synth_qa}{python -m scripts.run_eval --config configs/experiments/retrieval_main.yaml}
 \tableorTODO{retrieval_main_paraphrase_qa}{python -m scripts.run_eval --config configs/experiments/retrieval_main.yaml}
-\tableorTODO{retrieval_chunks_heading_qa}{notebooks/kaggle\_experiments.ipynb cell 9: python -m scripts.run\_eval --config configs/experiments/retrieval\_chunks.yaml}
+\tableorTODO{retrieval_chunks_heading_qa}{notebooks/kaggle\_experiments.ipynb step retrieval\_chunks: python -m scripts.run\_eval --config configs/experiments/retrieval\_chunks.yaml}
 
 \subsection{Risk classifier and safety gate (RQ2)}
 On the held-out test split, fine-tuned DistilRoBERTa reached AUROC \TransAUROC{} (recall \TransRecall{}, precision
@@ -274,10 +274,10 @@ was \GateVTwoHeldAnySafety{}. The lexicon alone generalised worst (held-out reca
 
 \subsection{Generation and efficiency (RQ3)}
 \GenerationSummary
-\tableorTODO{generation_local_faq_gen}{notebooks/kaggle\_experiments.ipynb cell 10b: python -m scripts.run\_eval --config configs/experiments/generation\_local.yaml}
-\tableorTODO{generation_local_oos}{notebooks/kaggle\_experiments.ipynb cell 10b}
-\tableorTODO{generation_gpu_faq_gen}{notebooks/kaggle\_experiments.ipynb cell 11}
-\tableorTODO{generation_gpu_oos}{notebooks/kaggle\_experiments.ipynb cell 11}
+\tableorTODO{generation_local_faq_gen}{notebooks/kaggle\_experiments.ipynb step generation\_local: python -m scripts.run\_eval --config configs/experiments/generation\_local.yaml}
+\tableorTODO{generation_local_oos}{notebooks/kaggle\_experiments.ipynb step generation\_local}
+\tableorTODO{generation_gpu_faq_gen}{notebooks/kaggle\_experiments.ipynb step generation\_gpu}
+\tableorTODO{generation_gpu_oos}{notebooks/kaggle\_experiments.ipynb step generation\_gpu}
 
 \paragraph{Latency} \LatencySummary
 \tableorTODO{latency}{python -m scripts.bench\_latency --all}

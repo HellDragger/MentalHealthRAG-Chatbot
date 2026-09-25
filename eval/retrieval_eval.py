@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import time
+from pathlib import Path
 
 import numpy as np
 
@@ -41,7 +44,31 @@ def score_run(retriever, queries: list[dict], mode: str, k: int = 10) -> dict:
     return {"summary": summary, "per_query": {m: v for m, v in per.items() if m != "latency_ms"}}
 
 
-def run_retrieval_experiment(cfg: dict, settings: Settings) -> dict:
+def _run_key(system: str, embedder: str | None, chunk: int, dataset: str, queries: list[dict]) -> str:
+    """Identifies a finished run in the checkpoint; the query-id hash invalidates it if the eval set changes."""
+    qh = hashlib.sha1("|".join(str(q["id"]) for q in queries).encode()).hexdigest()[:12]
+    return f"{system}|{embedder or '-'}|c{chunk}|{dataset}|{qh}"
+
+
+def _load_runs(path: Path | None) -> dict[str, dict]:
+    if path is None or not path.exists():
+        return {}
+    runs = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        try:
+            r = json.loads(line)
+        except json.JSONDecodeError:  # truncated last line of an interrupted run
+            continue
+        runs[r["_key"]] = r
+    return runs
+
+
+def run_retrieval_experiment(cfg: dict, settings: Settings, checkpoint: Path | None = None) -> dict:
+    """`checkpoint`: a JSONL file with one line per finished (system, embedder, chunk size, dataset) run. Runs
+    already in it are reused, so an interrupted experiment resumes where it stopped."""
+    done = _load_runs(checkpoint)
+    if done:
+        log.info("resuming: %d finished runs in %s", len(done), checkpoint)
     datasets = {}
     for name in cfg["datasets"]:
         try:
@@ -51,7 +78,7 @@ def run_retrieval_experiment(cfg: dict, settings: Settings) -> dict:
     runs = []
     for chunk in cfg["chunk_sizes"]:
         for emb in cfg["embedders"]:
-            build_index(settings, emb, chunk)
+            built = False
             for sysdef in cfg["systems"]:
                 if sysdef.get("embedders") and emb not in sysdef["embedders"]:
                     continue
@@ -59,9 +86,20 @@ def run_retrieval_experiment(cfg: dict, settings: Settings) -> dict:
                     continue  # BM25 does not depend on the embedder; score it once per chunk size
                 if sysdef.get("chunk_sizes") and chunk not in sysdef["chunk_sizes"]:
                     continue
+                run_emb = None if sysdef["mode"] == "bm25" else emb
+                keys = {d: _run_key(sysdef["name"], run_emb, chunk, d, q) for d, q in datasets.items()}
+                if all(k in done for k in keys.values()):
+                    runs += [{k: v for k, v in done[keys[d]].items() if k != "_key"} for d in datasets]
+                    continue
+                if not built:
+                    build_index(settings, emb, chunk)
+                    built = True
                 need_rr = sysdef["mode"].endswith("_rerank")
                 r = build_retriever(settings, emb, chunk, need_reranker=need_rr, reranker_key=sysdef.get("reranker"))
                 for dname, queries in datasets.items():
+                    if keys[dname] in done:
+                        runs.append({k: v for k, v in done[keys[dname]].items() if k != "_key"})
+                        continue
                     t0 = time.time()
                     res = score_run(r, queries, sysdef["mode"])
                     run = {"system": sysdef["name"], "mode": sysdef["mode"], "reranker": sysdef.get("reranker"),
@@ -69,6 +107,10 @@ def run_retrieval_experiment(cfg: dict, settings: Settings) -> dict:
                            "dataset": dname, "n_queries": len(queries), "n_chunks": len(r.index.chunks),
                            "seconds": round(time.time() - t0, 1), **res}
                     runs.append(run)
+                    if checkpoint is not None:
+                        checkpoint.parent.mkdir(parents=True, exist_ok=True)
+                        with open(checkpoint, "a", encoding="utf-8") as f:
+                            f.write(json.dumps({"_key": keys[dname], **run}) + "\n")
                     s = res["summary"]
                     log.info("%-14s %-10s c%-4d %-14s R@1 %.3f R@10 %.3f MRR %.3f nDCG %.3f", sysdef["name"],
                              run["embedder"] or "-", chunk, dname, s["R@1"]["mean"], s["R@10"]["mean"],
