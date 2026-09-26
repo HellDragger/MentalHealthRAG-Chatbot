@@ -104,13 +104,16 @@ def generate(cfg: dict, settings: Settings, out_dir: Path, limit: int | None) ->
             for profile in cfg["profiles"]:
                 path = out_dir / f"{model}__{profile}__{dataset}.jsonl"
                 done = {i: r for i, r in _answers(path).items() if not r.get("error")}  # failed ones are retried
-                s2, emb, chunk, variant = _index_for(settings, cfg, dataset, profile)
-                key = (emb, chunk, variant)
-                if profile != "no_rag" and key not in retrievers:
-                    retrievers[key] = build_retriever(s2, emb, chunk, variant,
-                                                      need_reranker=s2.retrieval.mode.endswith("_rerank"))
-                pipe = RAGPipeline(s2, retrievers.get(key) if profile != "no_rag" else None, mm,
-                                   gate if profile == "full" else None)
+                if profile == "no_rag":  # no retrieval, so no index to build
+                    s2, retriever = settings, None
+                else:
+                    s2, emb, chunk, variant = _index_for(settings, cfg, dataset, profile)
+                    key = (emb, chunk, variant)
+                    if key not in retrievers:
+                        retrievers[key] = build_retriever(s2, emb, chunk, variant,
+                                                          need_reranker=s2.retrieval.mode.endswith("_rerank"))
+                    retriever = retrievers[key]
+                pipe = RAGPipeline(s2, retriever, mm, gate if profile == "full" else None)
                 params = pipe.params(temperature=cfg.get("temperature", 0.0))
                 with open(path, "a", encoding="utf-8") as f:
                     for row in rows:

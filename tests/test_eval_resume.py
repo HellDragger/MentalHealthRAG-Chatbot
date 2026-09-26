@@ -259,9 +259,12 @@ def test_generate_only_saves_answers_without_scoring(tmp_path, monkeypatch):
     path = tmp_path / "gen.yaml"
     path.write_text(yaml.safe_dump(cfg))
     monkeypatch.setenv("MHRAG_PATHS__RESULTS", str(tmp_path / "results"))
+    monkeypatch.setenv("MHRAG_PATHS__ARTIFACTS", str(tmp_path / "artifacts"))  # never the repo's own folders
+    monkeypatch.setenv("MHRAG_EMBEDDER_BACKEND", "hashing")  # offline, no model download
     monkeypatch.setenv("MHRAG_SAFETY__CLASSIFIER", "none")
     assert run_eval.main(["--config", str(path), "--generate-only", "--limit", "2"]) == 0
     out = tmp_path / "results" / "generation" / "t"
     assert (out / "mock__no_rag__faq_gen.jsonl").read_text().count("\n") == 2
     assert (out / "mock__status.json").exists()
     assert not (out / "scored.jsonl").exists() and not (tmp_path / "results" / "generation_t.json").exists()
+    assert not (tmp_path / "artifacts" / "index").exists()  # no retrieval, so no index was built
