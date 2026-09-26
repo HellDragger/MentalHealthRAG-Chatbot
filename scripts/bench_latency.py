@@ -59,7 +59,7 @@ CONFIGS = {
     "v2_hf_cuda": {"kind": "v2", "model": "qwen2.5-1.5b-instruct", "n": 12, "requires": "cuda"},
     "v2_hf_cuda_4bit": {"kind": "v2", "model": "mistral-7b-instruct-v0.3", "env": {"MHRAG_LOAD_IN_4BIT": "1"},
                         "n": 12, "requires": "cuda"},
-    "v2_api": {"kind": "v2", "model": "llama-3.3-70b-groq", "n": 12, "requires": "GROQ_API_KEY"},
+    "v2_api": {"kind": "v2", "model": "gpt-oss-120b-groq", "n": 12, "requires": "GROQ_API_KEY"},
     "retrieval": {"kind": "retrieval", "n": 12},
 }
 
@@ -137,6 +137,14 @@ def env_info() -> dict:
 
 
 # ---------------------------------------------------------------------------------------------- runners
+def _ensure_index(s) -> None:
+    """Build the default index if it is missing (a no-op when it is up to date), so the benchmark also runs on a
+    fresh checkout such as a Kaggle session."""
+    from mhrag.index.builder import build_index
+
+    build_index(s)
+
+
 def run_v1(cfg: dict, n: int) -> dict:
     """v1 generation settings with transformers, reproduced faithfully (see module docstring)."""
     import torch
@@ -148,6 +156,7 @@ def run_v1(cfg: dict, n: int) -> dict:
     from mhrag.retrieval.factory import build_retriever
 
     s = get_settings()
+    _ensure_index(s)
     retriever = build_retriever(s, need_reranker=False)
     model_id = load_catalog()[cfg["model"]].raw["hf_id"]
     with PeakRSS() as mem:
@@ -187,6 +196,7 @@ def run_v2(cfg: dict, n: int) -> dict:
     s.llm.served_models = [cfg["model"]]
     with PeakRSS() as mem:
         t0 = time.perf_counter()
+        _ensure_index(s)
         rt = build_runtime(s, warmup=True)
         startup_s = time.perf_counter() - t0
         rows = []
@@ -220,6 +230,7 @@ def run_retrieval(cfg: dict, n: int) -> dict:
     from mhrag.retrieval.factory import build_retriever
 
     s = get_settings()
+    _ensure_index(s)
     r = build_retriever(s)
     r.retrieve("warm up", 1, "hybrid_rerank")
     out = {}

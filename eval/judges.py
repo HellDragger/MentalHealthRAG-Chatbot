@@ -134,7 +134,8 @@ class LLMJudge:
         from mhrag.llm.base import GenerationParams
 
         self.backend = backend
-        self.params = params or GenerationParams(max_new_tokens=200, temperature=0.0)
+        # room for a reasoning judge's hidden reasoning; non-reasoning judges stop after the short JSON anyway
+        self.params = params or GenerationParams(max_new_tokens=1024, temperature=0.0)
         self.model = backend.spec.key
 
     def rubric(self, question: str, answer: str, reference: str | None = None) -> dict | None:

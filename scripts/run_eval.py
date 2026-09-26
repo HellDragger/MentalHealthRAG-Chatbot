@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -60,6 +61,8 @@ def main(argv=None) -> int:
             ckpt.unlink(missing_ok=True)
         retrieval_tables(json.loads(out.read_text()))
     elif cfg["kind"] == "generation":
+        if os.environ.get("MHRAG_JUDGE_MODEL"):  # e.g. a judge the API key has access to
+            cfg["judge_model"] = os.environ["MHRAG_JUDGE_MODEL"]
         from eval.generation_eval import run_generation_experiment
         from eval.report import generation_tables
 
@@ -68,11 +71,22 @@ def main(argv=None) -> int:
             if unknown:
                 raise SystemExit(f"--models not in the experiment config: {unknown}")
             cfg["run_models"] = args.models
+        from eval.generation_eval import RateLimited
+
         if not args.tables_only:
-            res = run_generation_experiment(cfg, s, limit=args.limit)
+            try:
+                res = run_generation_experiment(cfg, s, limit=args.limit)
+            except RateLimited as e:
+                print(f"API quota exhausted ({e}). All answers so far are saved; run again later to continue.")
+                return 75
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(json.dumps(res, indent=1))
-        generation_tables(json.loads(out.read_text()))
+        res = json.loads(out.read_text())
+        generation_tables(res)
+        if res.get("judge_status") == "incomplete" and not args.tables_only:
+            print(f"wrote {out}, but the LLM judge is incomplete (API quota); its columns stay TODO(run). "
+                  "Run again later: cached verdicts are reused.")
+            return 75
     else:
         raise SystemExit(f"unknown kind {cfg['kind']}")
     print(f"wrote {out}")

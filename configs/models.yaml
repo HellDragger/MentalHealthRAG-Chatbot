@@ -418,6 +418,9 @@ models:
     base_url: https://api.groq.com/openai/v1
     api_model: openai/gpt-oss-120b
     api_key_env: GROQ_API_KEY
+    # A reasoning model: Groq returns the reasoning separately (not in the answer). Low effort keeps latency and token
+    # use down (https://console.groq.com/docs/reasoning, checked 2026-09-25).
+    request_params: {reasoning_effort: low}
     family: generic
     params_b: 117
     license: apache-2.0

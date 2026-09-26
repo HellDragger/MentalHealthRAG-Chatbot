@@ -84,7 +84,7 @@ All settings live in [configs/default.yaml](configs/default.yaml), and any of th
 | Embedder | `bge-small` | `MHRAG_INDEX__EMBEDDER=e5-base` (then rebuild the index) |
 | Chunk size | 256 tokens | `MHRAG_CHUNKING__CHUNK_TOKENS=512` |
 | Retrieval mode | `hybrid_rerank` | `MHRAG_RETRIEVAL__MODE=dense` |
-| Default LLM | `qwen2.5-1.5b-gguf` | `MHRAG_LLM__MODEL=llama-3.3-70b-groq` or `auto` |
+| Default LLM | `qwen2.5-1.5b-gguf` | `MHRAG_LLM__MODEL=gpt-oss-120b-groq` or `auto` |
 | Models in the UI selector | all (`["*"]`) | `MHRAG_LLM__SERVED_MODELS='["qwen2.5-1.5b-gguf","gpt2"]'` |
 | Helpline region | `IN` | `MHRAG_SAFETY__REGION=UK` |
 | Log message text | `false` | never enable in production |
@@ -93,7 +93,7 @@ All settings live in [configs/default.yaml](configs/default.yaml), and any of th
 the original v1 models). Every model this machine can run is selectable. The others are shown disabled with the reason:
 missing API key, gated without `HF_TOKEN`, too large for this machine's RAM/VRAM, or no Ollama server running. Local models
 download on first use and are loaded one at a time. To restrict the list, set
-`MHRAG_LLM__SERVED_MODELS='["qwen2.5-1.5b-gguf","llama-3.3-70b-groq"]'`.
+`MHRAG_LLM__SERVED_MODELS='["qwen2.5-1.5b-gguf","gpt-oss-120b-groq"]'`.
 
 The model catalogue is in [configs/models.yaml](configs/models.yaml). It covers Mistral-7B (the v1 baseline) and
 Ministral-8B; Llama-3.1/3.2; Qwen2.5/Qwen3; Gemma-2/3; Phi-3.5/4-mini; SmolLM2, TinyLlama, Granite, OLMo-2 and FLAN-T5; the
@@ -157,15 +157,17 @@ BART-large-CNN (a summariser) copies its input.
 questions to the crisis protocol and 12 to the elevated tier, all triggered by the classifier (e.g. "Where can I go to
 find therapy"). It fails safe, but replaces useful answers.
 
-**Still to run on a GPU** (Kaggle notebook): CUDA latency, the full multi-LLM benchmark and the LLM judge. Their tables
-in the paper show `TODO(run)` with the command until then.
+**Still to run** (Kaggle notebook): CUDA latency, the 19-model benchmark (open models on a T4; compared with the
+automatic metrics) and the LLM judge. Groq's free plan allows ~200k tokens/day for the judge (gpt-oss-120b), so it
+scores a fixed sample of 20 questions per dataset in the local experiment and continues across sessions until done.
+Their tables in the paper show `TODO(run)` with the command until then.
 The Kaggle notebook is resumable across 12-hour sessions: attach its previous output as an input and run it
 again. Finished steps are skipped, and interrupted ones continue from their last saved answer.
 To bring results back, download `mhrag_results.zip` from the notebook's Output tab and run
 `python -m scripts.import_results ~/Downloads/mhrag_results.zip` (add `--dry-run` to preview). It imports only the
 experiments that run finished, never replaces a local measurement with a pending one, and regenerates the paper tables
 and numbers.
-GPU-scale results (7–12B models, LLM judge) are marked `TODO(run)` until you run the Kaggle or Colab notebook.
+GPU-scale results (7–12B models) and the LLM judge are marked `TODO(run)` until you run the Kaggle or Colab notebook.
 
 ## Reproducing every table
 

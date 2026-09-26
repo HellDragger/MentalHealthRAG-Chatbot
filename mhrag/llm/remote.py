@@ -26,6 +26,13 @@ def _env_or(raw: dict, key: str) -> str | None:
     return raw.get(key)
 
 
+def _retry_after(r) -> float | None:
+    try:
+        return float(r.headers["retry-after"])
+    except (KeyError, ValueError):
+        return None
+
+
 def _api_error(r) -> str:
     """The provider's error message (e.g. "model not found"), never the request content."""
     try:
@@ -53,6 +60,16 @@ class OpenAICompatibleBackend(Backend):
         self.timeout = httpx.Timeout(timeout_s, connect=10.0)
         self.max_retries = max_retries
 
+    def _available_models(self) -> str:
+        """On 'model not found', list the models this key can use (GET /models), to tell a wrong model id from a
+        key whose organisation, project or plan does not include the model."""
+        try:
+            r = httpx.get(f"{self.base_url}/models", headers=self._headers(), timeout=10.0)
+            ids = sorted(m["id"] for m in r.json().get("data", []))
+        except Exception:
+            return ""
+        return f". This key can use: {', '.join(ids)}" if ids else ""
+
     def _headers(self) -> dict:
         h = {"Content-Type": "application/json"}
         if self.api_key:
@@ -71,8 +88,11 @@ class OpenAICompatibleBackend(Backend):
         }
         if params.seed is not None:
             body["seed"] = params.seed
+        body.update(self.spec.raw.get("request_params") or {})  # provider-specific, e.g. reasoning_effort
         url = f"{self.base_url}/chat/completions"
-        for attempt in range(self.max_retries + 1):
+        attempt, rate_waits = -1, 0
+        while True:
+            attempt += 1
             emitted = False
             try:
                 with httpx.Client(timeout=self.timeout) as client, client.stream(
@@ -81,13 +101,21 @@ class OpenAICompatibleBackend(Backend):
                     if r.status_code == 400 and "stream_options" in body:
                         body.pop("stream_options")  # some servers reject it; retry without
                         raise httpx.HTTPStatusError("retry without stream_options", request=r.request, response=r)
+                    wait = _retry_after(r)
+                    if r.status_code == 429 and wait is not None and wait <= 120 and rate_waits < 8:
+                        # a per-minute limit: wait it out (a daily quota asks for a much longer wait and fails below)
+                        rate_waits += 1
+                        attempt -= 1
+                        time.sleep(wait + 0.5)
+                        continue
                     if r.status_code in (429, 500, 502, 503, 504) and attempt < self.max_retries:
                         wait = float(r.headers.get("retry-after", 2 ** attempt))
                         time.sleep(min(wait, 10))
                         continue
                     if r.status_code >= 400:
                         r.read()
-                        raise BackendError(f"{self.spec.key}: HTTP {r.status_code}{_api_error(r)}")
+                        hint = self._available_models() if r.status_code == 404 else ""
+                        raise BackendError(f"{self.spec.key}: HTTP {r.status_code}{_api_error(r)}{hint}")
                     for line in r.iter_lines():
                         if not line.startswith("data:"):
                             continue

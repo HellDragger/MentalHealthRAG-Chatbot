@@ -131,3 +131,119 @@ def test_judge_client_error_disables_judge_without_crashing(tmp_path, monkeypatc
     assert len(calls) == 2  # stopped at the first client error
     assert all(not any(k.startswith("judge_") for k in a["metrics"]) for a in answers)  # no partial judging
     assert (tmp_path / "judge_cache.jsonl").read_text().count("\n") == 1  # the verdict obtained is kept
+
+
+def _fake_judge(monkeypatch, fail_after=None, error="HTTP 429"):
+    import eval.generation_eval as ge
+    import eval.judges as judges
+    from mhrag.llm.base import BackendError
+
+    calls = []
+
+    class Mgr:
+        def __init__(self, *a, **k):
+            pass
+
+        def get(self, key):
+            return object()
+
+    class Judge:
+        def __init__(self, backend):
+            pass
+
+        def rubric(self, q, a, ref):
+            calls.append(q)
+            if fail_after is not None and len(calls) > fail_after:
+                raise BackendError(f"judge: {error} (rate limit reached)")
+            return {"empathy": 4}
+
+        def faithfulness(self, a, ctx):
+            return 1.0
+
+    monkeypatch.setattr(ge, "load_catalog", lambda: {"j": None})
+    monkeypatch.setattr(ge, "availability", lambda spec: (True, "ok"))
+    monkeypatch.setattr(ge, "ModelManager", Mgr)
+    monkeypatch.setattr(judges, "LLMJudge", Judge)
+    return calls
+
+
+def _answers_for_judging(n=6):
+    return [{"id": i, "dataset": "faq_gen", "query": f"q{i}", "answer": "a", "profile": "no_rag", "metrics": {}}
+            for i in range(n)]
+
+
+def test_judge_quota_exhausted_withholds_scores_then_resumes(tmp_path, monkeypatch):
+    import eval.generation_eval as ge
+
+    calls = _fake_judge(monkeypatch, fail_after=2)
+    answers = _answers_for_judging()
+    assert ge._llm_judge(answers, {"judge_model": "j"}, tmp_path) == "incomplete"
+    assert all(not a["metrics"] for a in answers)  # no partial judging in the tables
+    assert (tmp_path / "judge_cache.jsonl").read_text().count("\n") == 2  # but the verdicts are kept
+
+    calls = _fake_judge(monkeypatch)  # quota back
+    answers = _answers_for_judging()
+    assert ge._llm_judge(answers, {"judge_model": "j"}, tmp_path) == "complete"
+    assert len(calls) == 4  # only the 4 answers not judged before
+    assert all(a["metrics"]["judge_empathy"] == 4 for a in answers)
+
+
+def test_judge_sample_is_fixed_and_shared(monkeypatch, tmp_path):
+    import eval.generation_eval as ge
+
+    ids = list(range(40))
+    a, b = ge.judge_sample_ids({"judge_sample": 10}, "faq_gen", ids), ge.judge_sample_ids({"judge_sample": 10}, "faq_gen", ids[::-1])
+    assert a == b and len(a) == 10  # the same questions whatever the order (so for every model and setting)
+    assert ge.judge_sample_ids({}, "faq_gen", ids) is None
+    calls = _fake_judge(monkeypatch)
+    answers = _answers_for_judging(40)
+    assert ge._llm_judge(answers, {"judge_model": "j", "judge_sample": 10}, tmp_path) == "complete"
+    assert len(calls) == 10 and sum("judge_empathy" in x["metrics"] for x in answers) == 10
+
+
+def test_generation_skips_model_the_key_cannot_use_and_stops_on_rate_limit(tmp_path, monkeypatch):
+    import pytest
+
+    import eval.generation_eval as ge
+
+    rows = {"faq_gen": [{"id": 1, "query": "q"}, {"id": 2, "query": "q2"}]}
+    monkeypatch.setattr(ge, "load_jsonl", lambda name: [dict(r) for r in rows[name.removesuffix(".jsonl")]])
+    monkeypatch.setattr(ge, "load_catalog", lambda: {"api": None})
+    monkeypatch.setattr(ge, "availability", lambda spec: (True, "ok"))
+    monkeypatch.setattr(ge, "build_gate", lambda s: None)
+    monkeypatch.setattr(ge, "_index_for", lambda *a: (None, "e", 1, ""))
+
+    class Backend:
+        def close(self):
+            pass
+
+    class Mgr:
+        def __init__(self, *a, **k):
+            self._loaded = {}
+
+        def get(self, key):
+            return Backend()
+
+    error = ["BackendError: api: HTTP 404 (no access)"]
+
+    class Pipe:
+        def __init__(self, *a):
+            pass
+
+        def params(self, **k):
+            return None
+
+        def answer(self, *a, **k):
+            raise RuntimeError(error[0])
+
+    monkeypatch.setattr(ge, "ModelManager", Mgr)
+    monkeypatch.setattr(ge, "RAGPipeline", Pipe)
+    cfg = {"models": ["api"], "datasets": ["faq_gen"], "profiles": ["no_rag", "full"]}
+    recs = ge.generate(cfg, None, tmp_path, limit=None)
+    assert recs == [{"model": "api", "status": "TODO(run): no access with this API key: RuntimeError: "
+                                               "BackendError: api: HTTP 404 (no access)"}]
+    assert (tmp_path / "api__no_rag__faq_gen.jsonl").read_text().count("\n") == 1  # stopped at the first failure
+
+    error[0] = "BackendError: api: HTTP 429 (rate limit)"
+    with pytest.raises(ge.RateLimited):
+        ge.generate(cfg, None, tmp_path, limit=None)

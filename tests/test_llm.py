@@ -182,3 +182,63 @@ def test_memory_check_blocks_models_that_do_not_fit(monkeypatch):
     if registry.importlib.util.find_spec("torch") is not None:
         ok, why = registry.availability(spec7)
         assert not ok and "needs" in why
+
+
+def test_model_not_found_lists_models_the_key_can_use(monkeypatch):
+    import httpx
+
+    import mhrag.llm.remote as remote
+    from mhrag.llm.base import BackendError, GenerationParams, ModelSpec
+
+    def handler(request):
+        if request.url.path.endswith("/models"):
+            return httpx.Response(200, json={"data": [{"id": "openai/gpt-oss-120b"}, {"id": "llama-3.1-8b-instant"}]})
+        return httpx.Response(404, json={"error": {"message": "The model `x` does not exist or you do not have access"}})
+
+    transport = httpx.MockTransport(handler)
+    real_client = httpx.Client
+    monkeypatch.setattr(remote.httpx, "Client", lambda **kw: real_client(transport=transport, **kw))
+    monkeypatch.setattr(remote.httpx, "get", lambda url, **kw: real_client(transport=transport).get(url, **kw))
+    monkeypatch.setenv("TEST_KEY", "k")
+    spec = ModelSpec(key="judge", backend="openai_compatible", label="j", family="generic", context=8192,
+                     raw={"base_url": "https://api.example.com/v1", "api_model": "x", "api_key_env": "TEST_KEY"})
+    b = remote.OpenAICompatibleBackend(spec, max_retries=0)
+    with pytest.raises(BackendError) as e:
+        b.generate([{"role": "user", "content": "hi"}], GenerationParams(max_new_tokens=3, temperature=0))
+    assert "HTTP 404" in str(e.value) and "llama-3.1-8b-instant, openai/gpt-oss-120b" in str(e.value)
+
+
+def test_per_minute_rate_limit_is_waited_out_but_daily_quota_fails(monkeypatch):
+    import httpx
+
+    import mhrag.llm.remote as remote
+    from mhrag.llm.base import BackendError, GenerationParams, ModelSpec
+
+    state = {"n": 0, "retry_after": "2"}
+    sse = 'data: {"choices":[{"delta":{"content":"OK"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
+
+    def handler(request):
+        state["n"] += 1
+        if state["n"] <= 3:
+            return httpx.Response(429, headers={"retry-after": state["retry_after"]},
+                                  json={"error": {"message": "Rate limit reached"}})
+        return httpx.Response(200, text=sse, headers={"content-type": "text/event-stream"})
+
+    transport = httpx.MockTransport(handler)
+    real_client = httpx.Client
+    sleeps = []
+    monkeypatch.setattr(remote.httpx, "Client", lambda **kw: real_client(transport=transport, **kw))
+    monkeypatch.setattr(remote.time, "sleep", sleeps.append)
+    monkeypatch.setenv("TEST_KEY", "k")
+    spec = ModelSpec(key="api", backend="openai_compatible", label="a", family="generic", context=8192,
+                     raw={"base_url": "https://api.example.com/v1", "api_model": "x", "api_key_env": "TEST_KEY",
+                          "request_params": {"reasoning_effort": "low"}})
+    b = remote.OpenAICompatibleBackend(spec, max_retries=2)
+    assert b.generate([{"role": "user", "content": "hi"}], GenerationParams(max_new_tokens=3)) == "OK"
+    assert sleeps == [2.5, 2.5, 2.5]  # three per-minute waits, not counted as failed attempts
+
+    state.update(n=0, retry_after="3600")  # a daily quota: give up quickly instead of sleeping for an hour
+    sleeps.clear()
+    with pytest.raises(BackendError, match="HTTP 429"):
+        b.generate([{"role": "user", "content": "hi"}], GenerationParams(max_new_tokens=3))
+    assert max(sleeps) <= 10
