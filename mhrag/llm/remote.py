@@ -91,6 +91,7 @@ class OpenAICompatibleBackend(Backend):
         body.update(self.spec.raw.get("request_params") or {})  # provider-specific, e.g. reasoning_effort
         url = f"{self.base_url}/chat/completions"
         attempt, rate_waits = -1, 0
+        self.last_rate_wait_s = 0.0  # time spent waiting out per-minute rate limits in this request
         while True:
             attempt += 1
             emitted = False
@@ -106,7 +107,9 @@ class OpenAICompatibleBackend(Backend):
                         # a per-minute limit: wait it out (a daily quota asks for a much longer wait and fails below)
                         rate_waits += 1
                         attempt -= 1
+                        log.info("%s: rate limited; waiting %.0f s", self.spec.key, wait + 0.5)
                         time.sleep(wait + 0.5)
+                        self.last_rate_wait_s += wait + 0.5
                         continue
                     if r.status_code in (429, 500, 502, 503, 504) and attempt < self.max_retries:
                         wait = float(r.headers.get("retry-after", 2 ** attempt))

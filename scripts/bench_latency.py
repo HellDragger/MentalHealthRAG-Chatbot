@@ -59,7 +59,8 @@ CONFIGS = {
     "v2_hf_cuda": {"kind": "v2", "model": "qwen2.5-1.5b-instruct", "n": 12, "requires": "cuda"},
     "v2_hf_cuda_4bit": {"kind": "v2", "model": "mistral-7b-instruct-v0.3", "env": {"MHRAG_LOAD_IN_4BIT": "1"},
                         "n": 12, "requires": "cuda"},
-    "v2_api": {"kind": "v2", "model": "gpt-oss-120b-groq", "n": 12, "requires": "GROQ_API_KEY"},
+    # pause between questions to stay under the free plan's tokens-per-minute limit, so TTFT is not throttling
+    "v2_api": {"kind": "v2", "model": "gpt-oss-120b-groq", "n": 12, "requires": "GROQ_API_KEY", "pause_s": 30},
     "retrieval": {"kind": "retrieval", "n": 12},
 }
 
@@ -105,6 +106,9 @@ def summarize(rows: list[dict]) -> dict:
         v = col(k)
         if v:
             out[k] = {"mean": statistics.mean(v), "p50": pct(v, 0.5), "p95": pct(v, 0.95)}
+    waits = col("rate_limit_wait_s")
+    if waits:
+        out["throttled_queries"] = sum(w > 0 for w in waits)  # >0: API rate limiting is in these timings
     return out
 
 
@@ -201,7 +205,9 @@ def run_v2(cfg: dict, n: int) -> dict:
         startup_s = time.perf_counter() - t0
         rows = []
         params = rt.pipeline.params(temperature=0.0)
-        for q in QUERIES[:n]:
+        for i, q in enumerate(QUERIES[:n]):
+            if i and cfg.get("pause_s"):
+                time.sleep(cfg["pause_s"])
             rt.retriever._rcache.clear()
             rt.retriever._qcache.clear()
             res = rt.pipeline.answer(q, model=cfg["model"], params=params)
@@ -209,7 +215,9 @@ def run_v2(cfg: dict, n: int) -> dict:
             rows.append({"query": q, "ttft_ms": t.get("ttft_ms"), "e2e_ms": t.get("total_ms"),
                          "output_tokens": t.get("output_tokens"), "tokens_per_s": t.get("tokens_per_s"),
                          "retrieval_ms": t.get("retrieval_ms"), "gate": res.get("gate"),
-                         "usage": res.get("usage")})
+                         "usage": res.get("usage"),
+                         # API rate-limit waiting inside this answer (0 = the timing is the model's own)
+                         "rate_limit_wait_s": getattr(rt.models.get(cfg["model"]), "last_rate_wait_s", 0.0)})
     extra = {}
     try:
         import torch

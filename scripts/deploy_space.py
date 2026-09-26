@@ -46,7 +46,8 @@ def main(argv=None) -> int:
         print(f"warning: index built with {m['embedder']['backend']}; the Space queries with fastembed. "
               "Rebuild with --backend fastembed --force for an exact match.", file=sys.stderr)
     # only ship the default index
-    ignore = IGNORE + [f"artifacts/index/{p.name}/*" for p in (s.artifacts_dir / "index").iterdir() if p != idx]
+    ignore = IGNORE + ["artifacts/index/.build.lock"] + [
+        f"artifacts/index/{p.name}/*" for p in (s.artifacts_dir / "index").iterdir() if p != idx]
 
     from huggingface_hub import HfApi
 

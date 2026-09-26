@@ -25,6 +25,7 @@ from eval.metrics import bootstrap_ci, holm, paired_bootstrap_p, wilcoxon_p
 from eval.tables import esc, fmt, write_table
 from mhrag.config import Settings
 from mhrag.index.builder import build_index
+from mhrag.index.embedders import free_accelerator_memory
 from mhrag.llm.registry import ModelManager, availability, load_catalog
 from mhrag.pipeline import RAGPipeline
 from mhrag.retrieval.factory import build_retriever
@@ -78,7 +79,16 @@ def generate(cfg: dict, settings: Settings, out_dir: Path, limit: int | None) ->
         mm = ModelManager(catalog, [model], model, timeout_s=cfg.get("timeout_s", 300))
         load_t = time.perf_counter()
         try:
-            backend = mm.get(model)
+            try:
+                backend = mm.get(model)
+            except Exception as e:
+                if "out of memory" not in str(e).lower():
+                    raise
+                # memory still held from the previous model or the failed load: release it and try once more
+                log.warning("%s: out of GPU memory while loading; freeing memory and retrying once", model)
+                mm = ModelManager(catalog, [model], model, timeout_s=cfg.get("timeout_s", 300))
+                free_accelerator_memory()
+                backend = mm.get(model)
         except Exception as e:  # e.g. out of memory or disk; record it and continue with the next model
             log.error("skip %s: failed to load: %s: %s", model, type(e).__name__, e)
             records.append({"model": model, "status": f"TODO(run): failed to load: {type(e).__name__}: {str(e)[:200]}"})
@@ -142,6 +152,8 @@ def generate(cfg: dict, settings: Settings, out_dir: Path, limit: int | None) ->
             status_path.write_text(json.dumps(records[-1]))
         mm._loaded.clear()
         backend.close()
+        del backend, mm
+        free_accelerator_memory()  # return the model's GPU memory before the next one loads
         if os.environ.get("MHRAG_FREE_MODEL_CACHE") == "1":
             free_model_cache(catalog[model])
     return records

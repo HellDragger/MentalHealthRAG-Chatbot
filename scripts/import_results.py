@@ -79,6 +79,18 @@ def copy_path_differs(root: Path, outputs: list[str]) -> bool:
     return any(copy_path(root / o, RESULTS / o, dry=True) for o in outputs)
 
 
+def result_is_current(root: Path, step: str) -> bool:
+    """The step's result was produced with today's experiment config and is complete (e.g. its LLM judge sample)."""
+    res_path, cfg_path = root / f"{step}.json", PROJECT_ROOT / "configs" / "experiments" / f"{step}.yaml"
+    if not (res_path.exists() and cfg_path.exists()):
+        return True
+    import yaml
+
+    res = json.loads(res_path.read_text())
+    used, now = res.get("config") or {}, yaml.safe_load(cfg_path.read_text())
+    return all(used.get(k) == v for k, v in now.items()) and res.get("judge_status") != "incomplete"
+
+
 def import_results(src: Path, dry: bool = False) -> dict:
     root = find_root(src)
     done = {p.stem for p in (root / "_checkpoints").glob("*.json")}
@@ -87,12 +99,15 @@ def import_results(src: Path, dry: bool = False) -> dict:
         present = [o for o in outputs if (root / o).exists()]
         if not present:
             continue
+        if step in done and not result_is_current(root, step):  # a marker from before the config changed
+            done.discard(step)
         if step not in done:  # switched off or unfinished: report it only if its files differ from ours
             if copy_path_differs(root, present):
                 report["not_finished"].append(step)
             continue
         for o in present:
             report["imported"] += copy_path(root / o, RESULTS / o, dry)
+    report["finished_steps"] = sorted(done)
     report["imported"] += merge_latency(root / "latency.json", RESULTS / "latency.json", dry)
     for log in (root / "logs").glob("kaggle_*.log"):
         report["imported"] += copy_path(log, RESULTS / "logs" / log.name, dry)

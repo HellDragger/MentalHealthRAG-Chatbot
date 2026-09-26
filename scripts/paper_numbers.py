@@ -160,6 +160,8 @@ def main():
             rows.append([label, "--", "\\multicolumn{5}{l}{\\todorun{python -m scripts.bench\\_latency --config " +
                          k.replace("_", "\\_") + "}}"])
             continue
+        if s.get("throttled_queries"):
+            label += f" ({s['throttled_queries']} of {s['n']} rate-limited)"
         mem = v.get("peak_rss_gb")
         rows.append([label, str(v.get("model", "")).replace("_", "\\_"), f"{s['ttft_ms']['p50'] / 1000:.2f}",
                      f"{s['e2e_ms']['p50'] / 1000:.1f}", f"{s['e2e_ms']['p95'] / 1000:.1f}",

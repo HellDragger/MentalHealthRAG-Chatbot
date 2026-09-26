@@ -247,3 +247,21 @@ def test_generation_skips_model_the_key_cannot_use_and_stops_on_rate_limit(tmp_p
     error[0] = "BackendError: api: HTTP 429 (rate limit)"
     with pytest.raises(ge.RateLimited):
         ge.generate(cfg, None, tmp_path, limit=None)
+
+
+def test_generate_only_saves_answers_without_scoring(tmp_path, monkeypatch):
+    import yaml
+
+    from scripts import run_eval
+
+    cfg = {"kind": "generation", "name": "t", "models": ["mock"], "profiles": ["no_rag"], "datasets": ["faq_gen"],
+           "temperature": 0.0, "judge_model": None}
+    path = tmp_path / "gen.yaml"
+    path.write_text(yaml.safe_dump(cfg))
+    monkeypatch.setenv("MHRAG_PATHS__RESULTS", str(tmp_path / "results"))
+    monkeypatch.setenv("MHRAG_SAFETY__CLASSIFIER", "none")
+    assert run_eval.main(["--config", str(path), "--generate-only", "--limit", "2"]) == 0
+    out = tmp_path / "results" / "generation" / "t"
+    assert (out / "mock__no_rag__faq_gen.jsonl").read_text().count("\n") == 2
+    assert (out / "mock__status.json").exists()
+    assert not (out / "scored.jsonl").exists() and not (tmp_path / "results" / "generation_t.json").exists()

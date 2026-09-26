@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import time
 from pathlib import Path
@@ -23,6 +24,24 @@ def index_dir(settings: Settings, embedder_key: str | None = None, chunk_tokens:
     )
 
 
+@contextlib.contextmanager
+def _build_lock(root: Path):
+    """One index build at a time across processes (e.g. one generation process per GPU); the second process then
+    finds the index up to date instead of racing the first."""
+    root.mkdir(parents=True, exist_ok=True)
+    try:
+        import fcntl
+    except ImportError:  # not POSIX: no cross-process lock
+        yield
+        return
+    with open(root / ".build.lock", "w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
 def build_index(
     settings: Settings,
     embedder_key: str | None = None,
@@ -33,6 +52,11 @@ def build_index(
     embedder: Embedder | None = None,
 ) -> tuple[Path, dict, bool]:
     """Build (or skip) one index. Returns (path, stats, built)."""
+    with _build_lock(settings.artifacts_dir / "index"):
+        return _build_index(settings, embedder_key, chunk_tokens, variant, force, backend, embedder)
+
+
+def _build_index(settings, embedder_key, chunk_tokens, variant, force, backend, embedder) -> tuple[Path, dict, bool]:
     key = embedder_key or settings.index.embedder
     ecfg = settings.embedder_cfg(key)
     chunking = settings.chunking.model_copy(update={"chunk_tokens": chunk_tokens or settings.chunking.chunk_tokens})
