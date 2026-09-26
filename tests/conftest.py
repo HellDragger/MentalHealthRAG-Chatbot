@@ -12,6 +12,19 @@ os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
 
+@pytest.fixture(autouse=True)
+def _ignore_caller_settings(monkeypatch):
+    """Tests must behave the same everywhere. The Kaggle notebook sets MHRAG_* for its whole session (results folder,
+    4-bit loading, freeing the model cache, ...), and pytest in that session would otherwise pick them up."""
+    from mhrag.config import get_settings
+
+    for k in [k for k in os.environ if k.startswith("MHRAG_")]:
+        monkeypatch.delenv(k)
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
 @pytest.fixture()
 def settings(tmp_path) -> Settings:
     raw = build_fixture_raw_data(tmp_path)
