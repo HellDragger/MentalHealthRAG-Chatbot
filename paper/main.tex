@@ -239,8 +239,10 @@ of \JudgeSample{} questions per dataset in the local experiment, the same questi
 free API quota did not allow judging the multi-model benchmark, which is compared with the automatic metrics above. We
 report the Spearman correlation between answer length and judge score as a verbosity-bias check. Settings are compared with paired bootstrap and Wilcoxon tests, Holm-corrected.
 
-\paragraph{Hardware} Local results were computed on \Hardware{}. GPU results use a free Colab T4 with 4-bit NF4 loading
-\citep{dettmers2023qlora}.
+\paragraph{Hardware} Local results were computed on \Hardware{}. GPU results were computed on free Kaggle sessions
+with NVIDIA T4 GPUs (16~GB), loading 7--12B models in 4-bit NF4 \citep{dettmers2023qlora}. Each model and each latency
+configuration runs on a single T4. The first three benchmark models (Mistral-7B, Llama-3.1-8B, Qwen2.5-7B) were
+generated with their layers split across two T4s; this affects only their timing, not their answers' metrics.
 
 % ==================================================================================================================
 \section{Results}

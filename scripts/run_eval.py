@@ -32,6 +32,9 @@ def main(argv=None) -> int:
     ap.add_argument("--config", required=True)
     ap.add_argument("--tables-only", action="store_true")
     ap.add_argument("--limit", type=int, help="use only the first N queries of each dataset (smoke runs)")
+    ap.add_argument("--generate-only", action="store_true",
+                    help="generation only: save answers but skip scoring (e.g. one process per GPU; score afterwards "
+                         "with a normal run, which reuses the saved answers)")
     ap.add_argument("--models", nargs="+", help="generation only: run just these model keys (e.g. one per Kaggle session); "
                                                "results are merged with earlier runs of the same experiment")
     args = ap.parse_args(argv)
@@ -75,6 +78,14 @@ def main(argv=None) -> int:
 
         if not args.tables_only:
             try:
+                if args.generate_only:
+                    from eval.generation_eval import generate
+
+                    out_dir = s.results_dir / "generation" / cfg["name"]
+                    out_dir.mkdir(parents=True, exist_ok=True)
+                    generate(cfg, s, out_dir, args.limit)
+                    print(f"answers saved in {out_dir} (not scored: run without --generate-only to score)")
+                    return 0
                 res = run_generation_experiment(cfg, s, limit=args.limit)
             except RateLimited as e:
                 print(f"API quota exhausted ({e}). All answers so far are saved; run again later to continue.")
